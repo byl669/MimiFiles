@@ -151,6 +151,8 @@ PYEOF
 echo "== 清单预览 =="; cat "$TMP_MANIFEST"
 
 # ── 提交清单并推送（先于 Release，让 tag 快照含匹配的清单）───────────────────
+mkdir -p "$PROJ_DIR/$(dirname "$MANIFEST_IN_REPO")"
+cp "$TMP_MANIFEST" "$PROJ_DIR/$MANIFEST_IN_REPO"
 git -C "$PROJ_DIR" add "$MANIFEST_IN_REPO"
 if git -C "$PROJ_DIR" diff --cached --quiet; then
   echo "== 清单无变化（同版本重发？）——继续发 Release"
@@ -172,13 +174,13 @@ print(json.dumps({
     "draft": False, "prerelease": False,
 }, ensure_ascii=False))
 PYEOF
-gh_api POST "/repos/${REPO}/releases" "$REL_JSON" > /dev/null
-echo "== Release $TAG 已创建"
+REL_ID="$(gh_api POST "/repos/${REPO}/releases" "$REL_JSON" | "$PY" -c 'import json,sys; print(json.load(sys.stdin)["id"])')"
+echo "== Release $TAG 已创建 (id=$REL_ID)"
 for f in "${APK_ARGS[@]}"; do
   UP="$(curl -sS --noproxy '*' --connect-timeout 15 --max-time 600 \
     -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/octet-stream" \
     --data-binary @"$f" \
-    "https://uploads.github.com/repos/${REPO}/releases/${TAG}/assets?name=$(basename "$f")" \
+    "https://uploads.github.com/repos/${REPO}/releases/${REL_ID}/assets?name=$(basename "$f")" \
     -o /dev/null -w '%{http_code}')"
   [ "$UP" = "201" ] || { echo "PUBLISH_FAIL 上传资产 $(basename "$f") HTTP=$UP"; exit 1; }
   echo "== 已上传 $(basename "$f")"

@@ -64,16 +64,10 @@ done
 PY="$(command -v python3 || true)"
 [ -z "$PY" ] && PY="/usr/bin/python3"
 
-# ── capability 段 ─────────────────────────────────────────────────────────────
-SEG="$("$PY" - "$GRADLE_FILE" <<'PYEOF'
-import re, sys
-s = open(sys.argv[1], encoding='utf-8').read()
-m = re.search(r'app/update/([0-9a-f]{32})/', s)
-print(m.group(1) if m else "")
-PYEOF
-)"
+# ── capability 段（旧客户端烤的就是这个段，保持原值；来源改为本地 env）────────
+SEG="${MANIFEST_SEGMENT:-}"
 if [ -z "$SEG" ]; then
-  echo "PUBLISH_FAIL 无法从 app/build.gradle.kts 提取 capability 段（app/update/<32位hex>/）"
+  echo "PUBLISH_FAIL publish-local.env 缺 MANIFEST_SEGMENT（旧客户端清单路径里的段值）"
   exit 1
 fi
 REL_DIR="app/update/$SEG"
