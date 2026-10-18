@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  搬运进度对话框。
+
+  刻意**只有**一个进度条、两行文字、两个按钮：这一页在传输期间会持续刷新，
+  每多一个控件就多一处每帧都要重算的东西，而它出现的场景恰恰是"用户正在等"。
+
+  `ProgressBar` 用框架自带的 `progressBarStyleHorizontal`：它在所有 ROM 上都有，
+  且支持 `indeterminate`（大小未知的目录搬运要用）。引 AppCompat 的版本没有额外收益。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingStart="@dimen/content_padding_double"
+    android:paddingTop="@dimen/content_padding"
+    android:paddingEnd="@dimen/content_padding_double"
+    android:paddingBottom="@dimen/content_padding_half">
+
+    <TextView
+        android:id="@+id/transferName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="middle"
+        android:maxLines="1"
+        android:textColor="@color/text_primary"
+        android:textSize="16sp" />
+
+    <ProgressBar
+        android:id="@+id/transferBar"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:max="100" />
+
+    <TextView
+        android:id="@+id/transferDetail"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:textColor="@color/text_secondary"
+        android:textSize="14sp" />
+
+    <!-- 这条提示是"隐藏"按钮的说明书。没有它，用户不敢点隐藏
+         （不敢确定隐藏之后搬运还在不在跑）。 -->
+    <TextView
+        android:id="@+id/transferHint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="@string/browser_transfer_dialog_hint"
+        android:textColor="@color/text_secondary"
+        android:textSize="13sp" />
+</LinearLayout>

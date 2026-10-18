@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ==========================================================================
+     密密文件管理 · 语义色（浅色基准）
+     规范：只定义"语义"，不在布局里写死色值；深色仅覆盖需要变化的那部分
+           （见 res/values-night/colors.xml），命名与参考应用语义对齐便于对照
+     ========================================================================== -->
+<resources>
+
+    <!-- ── 品牌色 ─────────────────────────────────────────────── -->
+    <color name="brand_green">#FF1F9D55</color>
+    <color name="brand_green_dark">#FF157A42</color>
+    <color name="primary">@color/brand_green</color>
+    <color name="primary_variant">@color/brand_green_dark</color>
+    <color name="on_primary">#FFFFFFFF</color>
+
+    <!-- ── 窗口与容器 ─────────────────────────────────────────── -->
+    <color name="bg_window">#FFFFFFFF</color>
+    <color name="background_in_card_page">#FFF5F6F8</color>
+    <color name="common_card_background_color">#FFFFFFFF</color>
+    <color name="nav_pane_bg">#FFF7F7F8</color>
+    <color name="status_bar_bg">#FFF0F0F2</color>
+    <color name="divider_in_card">#1A000000</color>
+    <color name="common_divider">#14000000</color>
+
+    <!-- ── 文字 ───────────────────────────────────────────────── -->
+    <color name="text_primary">#DE000000</color>
+    <color name="text_secondary">#8A000000</color>
+    <color name="text_disabled">#42000000</color>
+
+    <!-- ── 状态 ───────────────────────────────────────────────── -->
+    <color name="status_running">#FF1F9D55</color>
+    <color name="status_stopped">#FF9E9E9E</color>
+    <color name="status_error">#FFD32F2F</color>
+    <color name="button_text_color_red">#FFD32F2F</color>
+
+    <!-- ── 列表 ───────────────────────────────────────────────── -->
+    <color name="list_row_bg_selected">#1F1F9D55</color>
+    <color name="list_row_bg_hover">#0F000000</color>
+    <color name="list_header_bg">#FFF0F0F2</color>
+
+    <!-- ── 多选工具栏 ─────────────────────────────────────────────
+         选中态用品牌色淡底而非中性灰：多选是一个"模式"，需要一眼可辨。
+         灰底容易被误认为普通标题栏，用户会找不到"怎么退出多选"。 -->
+    <color name="select_bar_bg">#FFE9F6EF</color>
+    <color name="select_bar_divider">#332FB86B</color>
+
+    <!-- ── 权限降级提示条 ─────────────────────────────────────────
+         用琥珀色而非红色：这不是错误，是"功能受限"。
+         红色会让人以为应用坏了，而实际上它照常可用。 -->
+    <color name="permission_bar_bg">#FFFFF4E0</color>
+    <color name="permission_bar_text">#FF7A5200</color>
+
+    <!-- ── 预览（不计昼夜）────────────────────────────────────── -->
+    <color name="gallery_bg">#FF000000</color>
+
+    <!-- ── 文件类型图标色（浅色基准）─────────────────────────────
+         图标本体是单色 vector，靠 tint 上色。给文件类型分配颜色不是为了好看，
+         而是为了在密集列表里让"这是什么文件"在一瞥之内可判——比逐个读扩展名快得多。 -->
+    <color name="icon_folder">#FFE8A33D</color>
+    <color name="icon_image">#FF4C9AFF</color>
+    <color name="icon_video">#FF9B6BFF</color>
+    <color name="icon_audio">#FFFF7A59</color>
+    <color name="icon_text">#FF5B7083</color>
+    <color name="icon_pdf">#FFE5484D</color>
+    <color name="icon_archive">#FFB08A4B</color>
+    <color name="icon_apk">#FF3DDC84</color>
+    <color name="icon_code">#FF2AA198</color>
+    <color name="icon_unknown">#FF9AA5B1</color>
+</resources>

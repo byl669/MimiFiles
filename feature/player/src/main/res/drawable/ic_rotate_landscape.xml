@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  竖屏时的"转横屏"图标（M7.2 重画）：矩形屏幕 + 绕屏环形箭头。
+  老版画"手机姿态 + 内部小箭头"，暗色视频画面上辨识度低；新画法是
+  VLC / MX Player 等播放器通用的旋转水语，箭头方向顺带表达"往哪边转"。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="#FFFFFFFF">
+    <!-- 竖握的屏幕 -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.6"
+        android:pathData="M9.5,6.5h5a1.5,1.5 0 0 1 1.5,1.5v8a1.5,1.5 0 0 1 -1.5,1.5h-5A1.5,1.5 0 0 1 8,16V8a1.5,1.5 0 0 1 1.5,-1.5z" />
+    <!-- 左上 / 右下两段环弧 -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.6"
+        android:strokeLineCap="round"
+        android:pathData="M4.2,10.4A8,8 0 0 1 6,6.2M19.8,13.6A8,8 0 0 1 18,17.8" />
+    <!-- 环弧两端的箭头（指向顺时针 → 转成横屏） -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M4.6,13.3l-0.6,-3.2 3,0.6zM19.4,10.7l0.6,3.2 -3,-0.6z" />
+</vector>

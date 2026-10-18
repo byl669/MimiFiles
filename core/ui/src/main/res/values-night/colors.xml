@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ==========================================================================
+     密密文件管理 · 深色模式覆盖
+     只覆盖需要变化的语义色（预期 30~40 条），其余继承浅色基准。
+     规范：正文对比度 ≥ 4.5:1，次要文字 ≥ 3:1；图片/播放器底固定纯黑。
+     ========================================================================== -->
+<resources>
+
+    <!-- ── 品牌色（夜间降饱和，避免刺眼）───────────────────────── -->
+    <color name="brand_green">#FF2FB86B</color>
+    <color name="brand_green_dark">#FF1F9D55</color>
+    <color name="on_primary">#FF06240F</color>
+
+    <!-- ── 窗口与容器 ─────────────────────────────────────────── -->
+    <color name="bg_window">#FF121212</color>
+    <color name="background_in_card_page">#FF0E0E0E</color>
+    <color name="common_card_background_color">#FF1E1E1E</color>
+    <color name="nav_pane_bg">#FF1A1A1A</color>
+    <color name="status_bar_bg">#FF161616</color>
+    <color name="divider_in_card">#1AFFFFFF</color>
+    <color name="common_divider">#14FFFFFF</color>
+
+    <!-- ── 文字 ───────────────────────────────────────────────── -->
+    <color name="text_primary">#E6FFFFFF</color>
+    <color name="text_secondary">#99FFFFFF</color>
+    <color name="text_disabled">#4DFFFFFF</color>
+
+    <!-- ── 状态 ───────────────────────────────────────────────── -->
+    <color name="status_running">#FF3FD07F</color>
+    <color name="status_stopped">#FF6E6E6E</color>
+    <color name="status_error">#FFEF5350</color>
+    <color name="button_text_color_red">#FFEF5350</color>
+
+    <!-- ── 列表 ───────────────────────────────────────────────── -->
+    <color name="list_row_bg_selected">#332FB86B</color>
+    <color name="list_row_bg_hover">#14FFFFFF</color>
+    <color name="list_header_bg">#FF232323</color>
+
+    <!-- ── 多选工具栏（夜间保留品牌色倾向，仅压暗亮度）─────────── -->
+    <color name="select_bar_bg">#FF17291F</color>
+    <color name="select_bar_divider">#4D2FB86B</color>
+
+    <!-- ── 权限降级提示条（夜间压暗成深琥珀，避免整条发光）─────── -->
+    <color name="permission_bar_bg">#FF2A2113</color>
+    <color name="permission_bar_text">#FFF0C169</color>
+
+    <!-- ── 文件类型图标色（夜间提亮降饱和）───────────────────────
+         深色背景上直接用浅色版本会"发光"，因此每色都往高亮度、低饱和方向挪一档。 -->
+    <color name="icon_folder">#FFF0B75E</color>
+    <color name="icon_image">#FF6FB0FF</color>
+    <color name="icon_video">#FFAE86FF</color>
+    <color name="icon_audio">#FFFF9A80</color>
+    <color name="icon_text">#FF8FA3B5</color>
+    <color name="icon_pdf">#FFFF6B70</color>
+    <color name="icon_archive">#FFC9A566</color>
+    <color name="icon_apk">#FF57E39B</color>
+    <color name="icon_code">#FF3FC9BE</color>
+    <color name="icon_unknown">#FF7A8794</color>
+
+    <!-- gallery_bg 保持纯黑，不覆盖 -->
+</resources>

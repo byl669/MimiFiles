@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  PDF：一页一个 item，由 RecyclerView 做虚拟化；页面位图按需渲染、离屏回收。
+
+  ## 为什么要套一层 `ZoomableContainer`
+  RecyclerView 自己管着"翻页 + 页位图回收"，这是它擅长的事；缩放与平移则交给外层
+  以"变换整棵子树"的方式实现（`scaleX/scaleY/translationX/translationY`）。
+  两者职责分开，谁都不用为对方改写内部逻辑。
+
+  ⚠️ 子列表仍然是 `match_parent`（**未缩放时的尺寸**）：只有保持这个尺寸，
+  RecyclerView 才会正确地按屏回收页位图。缩放是渲染期的事，不参与布局。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background_in_card_page"
+    android:orientation="vertical">
+
+    <com.miyuetech.mimifiles.feature.preview.ZoomableContainer
+        android:id="@+id/pdf_zoom"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/pdf_pages"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:paddingTop="@dimen/content_padding"
+            android:paddingBottom="@dimen/content_padding" />
+    </com.miyuetech.mimifiles.feature.preview.ZoomableContainer>
+
+    <TextView
+        android:id="@+id/pdf_footer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/status_bar_bg"
+        android:gravity="center"
+        android:paddingTop="@dimen/content_padding_half"
+        android:paddingBottom="@dimen/content_padding_half"
+        android:textColor="@color/text_secondary"
+        android:textSize="12sp"
+        android:visibility="gone" />
+</LinearLayout>

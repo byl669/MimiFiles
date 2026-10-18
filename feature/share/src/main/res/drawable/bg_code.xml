@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 账号密码等"需要照抄的值"的底：等宽 + 浅底，让它一眼看着就是"可抄的东西" -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/status_bar_bg" />
+    <corners android:radius="6dp" />
+</shape>

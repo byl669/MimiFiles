@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ==========================================================================
+     共享路径编辑对话框
+
+     用 TextInputLayout 而不是裸 EditText：这个字段的输入很容易出错
+     （多一个斜杠、漏掉 scheme、把文件当成目录），而"哪里错了"必须能当场看到。
+     TextInputLayout 的错误态是 Material 的标准位置，用户不需要重新学。
+     ========================================================================== -->
+<com.google.android.material.textfield.TextInputLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingStart="@dimen/content_padding_double"
+    android:paddingTop="@dimen/content_padding_half"
+    android:paddingEnd="@dimen/content_padding_double"
+    app:helperTextEnabled="true">
+
+    <com.google.android.material.textfield.TextInputEditText
+        android:id="@+id/path_input"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fontFamily="monospace"
+        android:hint="@string/share_dialog_path_hint"
+        android:imeOptions="actionDone"
+        android:inputType="textUri"
+        android:maxLines="3"
+        android:textSize="14sp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="@string/share_dialog_path_help"
+        android:textColor="@color/text_secondary"
+        android:textSize="12sp" />
+</com.google.android.material.textfield.TextInputLayout>

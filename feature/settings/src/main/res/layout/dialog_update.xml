@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ==========================================================================
+     软件更新 · 详情对话框
+
+     ## 为什么用"一个布局 + 运行期填按钮"，而不是七个布局
+     更新的七种状态里，只有四种需要对话框（发现新版 / 下载中 / 就绪 / 需授权 / 失败）。
+     每种都写一份布局会带来一个具体的维护问题：**改一处文案要记得改七处**，
+     而漏掉的那一处恰好是用户很少走到、因此也最晚被发现的那个状态。
+     这里把"会变的部分"（标题、正文、补充说明、按钮组）抽成四个控件，
+     由代码按状态填充 —— 状态与内容的对应关系就集中在一处，看得见、改得动。
+
+     ## 颜色
+     全部走语义色（text_primary / text_secondary），它们在 values-night 里有对应值，
+     所以深色模式不需要第二份布局。**不要**在这里写死颜色 ——
+     M4.1 的教训是"只在深色下暴露"的对比度问题，写死色值正是它的主要来源。
+     ========================================================================== -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingStart="@dimen/content_padding_double"
+    android:paddingTop="@dimen/content_padding_double"
+    android:paddingEnd="@dimen/content_padding_double"
+    android:paddingBottom="@dimen/content_padding_half">
+
+    <TextView
+        android:id="@+id/dialog_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="@color/text_primary"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        tools:text="发现新版本 0.5.0" />
+
+    <TextView
+        android:id="@+id/dialog_message"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/content_padding_half"
+        android:lineSpacingExtra="3dp"
+        android:textColor="@color/text_primary"
+        android:textSize="15sp"
+        tools:text="新增：设置内软件更新；修复：SMB 匿名共享连接。" />
+
+    <TextView
+        android:id="@+id/dialog_detail"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/content_padding_half"
+        android:lineSpacingExtra="2dp"
+        android:textColor="@color/text_secondary"
+        android:textSize="13sp"
+        tools:text="下载约 6.0 MB，下载完会自动校验完整性、签名与版本。" />
+
+    <!--
+      这里**没有进度条**：下载进度一律显示在设置页的更新行上
+      （activity_settings.xml 的 `update_progress`）。
+
+      理由见 SettingsUpdateSection 里的长注释：下载中不需要用户做任何决定，
+      而进度条已经在"他刚点过的那个按钮"正下方一行。给它再配一个模态对话框，
+      唯一的效果是把用户困住。**需要用户读或决定的状态才配对话框。**
+    -->
+
+    <!--
+      这里**刻意没有按钮组**：按钮交给 `MaterialAlertDialogBuilder` 的
+      `setPositiveButton` / `setNegativeButton` 生成。
+
+      自己摆按钮看着更"可控"，实际要多付三样东西：手工套 Material 按钮样式、
+      手工 setOnClickListener、以及"点了之后要自己 dismiss"。而这三样正是
+      Material 对话框已经调好的（含深色模式下的按钮文字色、按下涟漪、
+      以及横屏时按钮自动改竖排的规则）。少写一层，少一处会跟主题脱节的地方。
+    -->
+</LinearLayout>

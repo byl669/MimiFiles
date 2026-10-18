@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 网卡名之类的小标签底色。用极浅的中性底 + 次要文字色：
+     它的作用是"分组提示"而不是"强调"，抢眼会削弱同一行里地址本身的地位。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/status_bar_bg" />
+    <corners android:radius="6dp" />
+</shape>

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SAF 根图标。
+
+  刻意**不**引用 `:core:ui` 的 `ic_storage`：那会把整套 Material UI 依赖拖进
+  provider 模块，而本模块是系统可能单独拉起的组件，能少一层就少一层。
+  图标本身也换了形状——这里代表"网络位置"，不是"本机存储"。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <path
+        android:fillColor="#FF1F9D55"
+        android:pathData="M4,4h7c0.55,0 1,0.45 1,1v7c0,0.55 -0.45,1 -1,1H4c-0.55,0 -1,-0.45 -1,-1V5c0,-0.55 0.45,-1 1,-1zM5,6v5h5V6H5z" />
+    <path
+        android:fillColor="#FF1F9D55"
+        android:pathData="M13,4h7c0.55,0 1,0.45 1,1v4c0,0.55 -0.45,1 -1,1h-7c-0.55,0 -1,-0.45 -1,-1V5c0,-0.55 0.45,-1 1,-1zM14,6v2h5V6H14z" />
+    <path
+        android:fillColor="#FF1F9D55"
+        android:pathData="M13,13h7c0.55,0 1,0.45 1,1v5c0,0.55 -0.45,1 -1,1h-7c-0.55,0 -1,-0.45 -1,-1v-5c0,-0.55 0.45,-1 1,-1zM14,15v3h5v-3H14z" />
+    <path
+        android:fillColor="#FF1F9D55"
+        android:pathData="M4,15h7c0.55,0 1,0.45 1,1v4c0,0.55 -0.45,1 -1,1H4c-0.55,0 -1,-0.45 -1,-1v-4c0,-0.55 0.45,-1 1,-1zM5,17v2h5v-2H5z" />
+</vector>

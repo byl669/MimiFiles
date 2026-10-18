@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- 备份连接配置与设置，但绝不备份凭据 -->
+    <include domain="sharedpref" path="." />
+    <exclude domain="sharedpref" path="credentials.preferences_pb" />
+    <exclude domain="sharedpref" path="connections.db" />
+</full-backup-content>

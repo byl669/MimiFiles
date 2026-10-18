@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  视频播放页。
+
+  ## 手势层为什么挂在 PlayerView 自己身上，而不是加一个覆盖全屏的 View
+  加一个覆盖层会挡住 Media3 自带的控制条（进度条、播放键），那些按钮就点不动了。
+  挂 `setOnTouchListener` 到 PlayerView 上则正好相反：**子 View（控制条）先拿事件**，
+  没被子 View 消费的地方才轮到我们的手势回调——拖动调亮度/音量、左右拖快进都落在
+  "画面空白区"，也就是用户的直觉位置。
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/player_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/black"
+    android:keepScreenOn="true">
+
+    <!--
+      surface_type 必须是 texture_view（M7.11）：
+      默认的 surface_view 是往硬件合成器里"打洞"直接合成视频层，**不保证跟随
+      View 层的旋转变换** —— 荣耀 V6 内屏（折叠屏的合成路径很特殊）实测：
+      渲染旋转兜底生效时，控制条等普通 View 转了，视频层纹丝不动、还按未旋转的
+      布局矩形摆放 → 画面压扁、比例失真（0.7.10 真机截图实锤）。
+      TextureView 是普通 View 图层，旋转/平移/缩放 100% 生效，任何设备都一致。
+      代价是合成走 GPU、耗电略增 —— 对"手动旋转必须可靠"这个需求来说值得。
+    -->
+    <androidx.media3.ui.PlayerView
+        android:id="@+id/player_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:resize_mode="fit"
+        app:show_buffering="when_playing"
+        app:use_controller="true"
+        app:surface_type="texture_view" />
+
+    <!--
+      顶部条：返回 / 标题 / 上一个 / 下一个。跟随控制条一起显隐。
+
+      ⚠️ 横竖屏按钮（`player_rotate`）与字幕按钮（`player_subtitle`）**故意放在这一排
+      的最后**，而且它们的正式位置并不在这里 —— 运行期会被
+      `VideoPlayerActivity.moveButtonsBesideSettings()` 搬进 Media3 控制条的
+      齿轮设置按钮旁边（真机反馈：放在"上一个/下一个"旁边会点错）。
+      留在这个位置的意义是**兜底**：万一控制条的内部结构变了、找不到齿轮，
+      它至少还在一个"离上一页/下一页最远"的地方，而不是凭空消失。
+      详见 VideoPlayerActivity 里那个方法的长注释。
+    -->
+    <LinearLayout
+        android:id="@+id/player_top"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:background="#99000000"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/content_padding_half"
+        android:paddingTop="4dp"
+        android:paddingEnd="@dimen/content_padding_half"
+        android:paddingBottom="4dp">
+
+        <ImageButton
+            android:id="@+id/player_back"
+            android:layout_width="@dimen/select_action_size"
+            android:layout_height="@dimen/select_action_size"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/player_back"
+            android:src="@drawable/ic_arrow_back"
+            app:tint="#FFFFFFFF" />
+
+        <TextView
+            android:id="@+id/player_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:layout_weight="1"
+            android:ellipsize="middle"
+            android:maxLines="1"
+            android:textColor="#FFFFFFFF"
+            android:textSize="14sp" />
+
+        <!--
+          「软解」角标：**只有视频轨道真的在使用系统软件解码器时才出现**（M7）。
+          判据来自 `AnalyticsListener.onDecoderInitialized` 报上来的实际解码器名，
+          不是"发生过软解重试"——重试后如果落回硬解，角标必须消失。
+          模拟器上所有解码器都是 c2.android.*（本身就是软解），所以模拟器上恒亮，
+          那是正确行为；真机上亮才说明真的在软解。
+        -->
+        <TextView
+            android:id="@+id/player_sw_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:background="@drawable/bg_sw_badge"
+            android:paddingStart="7dp"
+            android:paddingTop="2dp"
+            android:paddingEnd="7dp"
+            android:paddingBottom="2dp"
+            android:text="@string/player_sw_badge"
+            android:textColor="#FFFFFFFF"
+            android:textSize="11sp"
+            android:visibility="gone" />
+
+        <ImageButton
+            android:id="@+id/player_prev"
+            android:layout_width="@dimen/select_action_size"
+            android:layout_height="@dimen/select_action_size"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/player_prev"
+            android:src="@drawable/ic_chevron_left"
+            app:tint="#FFFFFFFF" />
+
+        <ImageButton
+            android:id="@+id/player_next"
+            android:layout_width="@dimen/select_action_size"
+            android:layout_height="@dimen/select_action_size"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/player_next"
+            android:src="@drawable/ic_chevron_right"
+            app:tint="#FFFFFFFF" />
+
+        <!--
+          视频信息入口（M7）：弹信息面板（编码/分辨率/实际解码器/本机可用解码器），
+          面板内可一键复制全文。放顶栏而不是塞进 Media3 齿轮菜单——
+          那块是库私有结构（见 moveRotateButtonBesideSettings 的注释），不想再依赖一次。
+        -->
+        <ImageButton
+            android:id="@+id/player_info"
+            android:layout_width="@dimen/select_action_size"
+            android:layout_height="@dimen/select_action_size"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/player_info"
+            android:src="@drawable/ic_info"
+            app:tint="#FFFFFFFF" />
+
+        <!--
+          字幕选择按钮（M7.13）：与 player_rotate 同一套「顶栏兜底 + 运行期注入」——
+          正式位置在 Media3 控制条（横竖屏按钮旁边），运行期由
+          VideoPlayerActivity.moveButtonsBesideSettings() 搬进去；
+          找不到齿轮时留在这里继续可用。
+        -->
+        <ImageButton
+            android:id="@+id/player_subtitle"
+            android:layout_width="@dimen/select_action_size"
+            android:layout_height="@dimen/select_action_size"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/player_subtitle"
+            android:src="@drawable/ic_subtitles"
+            app:tint="#FFFFFFFF" />
+
+        <ImageButton
+            android:id="@+id/player_rotate"
+            android:layout_width="@dimen/select_action_size"
+            android:layout_height="@dimen/select_action_size"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/player_rotate_landscape"
+            android:src="@drawable/ic_rotate_landscape"
+            app:tint="#FFFFFFFF" />
+    </LinearLayout>
+
+    <!--
+      外接显示器提示（M7.14）：视频面已切到副屏时，主屏 PlayerView 的画面区
+      是一片黑（surface 已断开）—— 不放这行字，用户会以为"播不了了"。
+      只占一行居中文字，控制条/进度条/字幕按钮照常可用。
+    -->
+    <TextView
+        android:id="@+id/player_ext_hint"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:alpha="0.85"
+        android:drawablePadding="8dp"
+        android:gravity="center"
+        android:text="@string/player_ext_hint"
+        android:textColor="#FFFFFFFF"
+        android:textSize="15sp"
+        android:visibility="gone" />
+
+    <!-- 手势 HUD：调亮度/音量/快进时的一行反馈 -->
+    <TextView
+        android:id="@+id/player_hud"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:background="#B3000000"
+        android:paddingStart="@dimen/content_padding"
+        android:paddingTop="@dimen/content_padding_half"
+        android:paddingEnd="@dimen/content_padding"
+        android:paddingBottom="@dimen/content_padding_half"
+        android:textColor="#FFFFFFFF"
+        android:textSize="15sp"
+        android:visibility="gone" />
+</FrameLayout>

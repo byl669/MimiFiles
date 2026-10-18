@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  画廊的一页。
+
+  · 背景纯黑：图片的观感依赖"看不到边界"，浅色底会让照片边缘与界面混在一起。
+  · `ZoomableImageView` 是自研视图（见同名 Kotlin 文件），不是 ImageView —— 它支持
+    双指缩放、双击、以及"按视口回报我看的是原图哪一块"（分块补清晰度的前提）。
+  · 加载进度用一个小号 ProgressBar 叠在中央，**不占布局空间**：图片通常几百毫秒就出来，
+    给它留位会让图闪一下再居中。
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/gallery_bg">
+
+    <com.miyuetech.mimifiles.feature.preview.ZoomableImageView
+        android:id="@+id/page_image"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <ProgressBar
+        android:id="@+id/page_progress"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:indeterminate="true" />
+
+    <!-- 视频占位：海报 + 播放按钮 -->
+    <FrameLayout
+        android:id="@+id/page_video_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#33000000"
+        android:visibility="gone">
+
+        <ImageView
+            android:id="@+id/page_poster"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="@string/preview_action_play"
+            android:scaleType="fitCenter" />
+
+        <ImageView
+            android:id="@+id/page_play"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:layout_gravity="center"
+            android:contentDescription="@string/preview_action_play"
+            android:src="@drawable/ic_play_circle" />
+    </FrameLayout>
+
+    <!-- 动态照片徽标（只对检测到的页面显示） -->
+    <LinearLayout
+        android:id="@+id/page_motion_badge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_marginStart="@dimen/content_padding"
+        android:layout_marginTop="72dp"
+        android:background="#66000000"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/content_padding_half"
+        android:paddingTop="4dp"
+        android:paddingEnd="@dimen/content_padding_half"
+        android:paddingBottom="4dp"
+        android:visibility="gone">
+
+        <ImageView
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:contentDescription="@string/preview_image_motion"
+            android:src="@drawable/ic_motion_photo" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:text="@string/preview_image_motion"
+            android:textColor="#FFFFFFFF"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <!-- 打不开时的页面级提示（不占满屏，别的页面照常可滑） -->
+    <TextView
+        android:id="@+id/page_error"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:textColor="#B3FFFFFF"
+        android:textSize="14sp"
+        android:visibility="gone" />
+</FrameLayout>

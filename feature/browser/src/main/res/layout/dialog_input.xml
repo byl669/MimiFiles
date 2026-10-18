@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 单行文本输入对话框（新建文件夹 / 重命名 / 桌面图标改名共用）。
+     刻意用朴素的 EditText 而不是 TextInputEditText：后者脱离 TextInputLayout 时
+     只能退化成普通输入框，还要额外引一层依赖，没有收益。 -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingStart="@dimen/content_padding_double"
+    android:paddingTop="@dimen/content_padding_half"
+    android:paddingEnd="@dimen/content_padding_double">
+
+    <EditText
+        android:id="@+id/input"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/browser_hint_folder_name"
+        android:imeOptions="actionDone"
+        android:inputType="text"
+        android:maxLines="1"
+        android:selectAllOnFocus="true"
+        android:textColor="@color/text_primary"
+        android:textColorHint="@color/text_secondary"
+        android:textSize="16sp" />
+</FrameLayout>

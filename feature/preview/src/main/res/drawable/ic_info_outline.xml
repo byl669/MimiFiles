@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 「详细信息」：环形 + 点 + 竖杠。环形用 evenOdd 挖空，内部形状仍是实心 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M24,3a21,21 0 1,0 0.01,0zM24,7a17,17 0 1,1 -0.01,0zM22,11h4v4h-4zM22,19h4v18h-4z" />
+</vector>

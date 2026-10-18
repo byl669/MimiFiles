@@ -1,0 +1,33 @@
+# ── 密密文件管理 · 忽略清单 ────────────────────────────────────────
+
+# 构建产物
+*.iml
+.gradle/
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+out/
+
+# 本地环境与凭据（绝不入库）
+local.properties
+keystore.properties
+*.jks
+*.keystore
+
+# IDE
+.idea/
+*.hprof
+
+# 系统
+.DS_Store
+
+# 发布产物 / 内部交付文档（含历史交付报告，仅存本机）
+dist/
+docs/
+
+# 自建 NAS 桥接通道凭据（主力通道在 GitHub，见 tools/publish-update-github.sh）
+tools/publish-local.env
+
+# Kotlin/Native 缓存
+.kotlin/

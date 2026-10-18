@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ==========================================================================
+     「在电脑上访问」地址卡 —— FTP 与 HTTP **共用同一份布局**（方案 §10.4）
+
+     这是把无线分享做到"零重复代码"的第二个落点（第一个是 FsBridge）：
+     两个 Tab 的差别只有"协议前缀"与"要不要显示二维码"，所以 Tab 切换只是
+     重新 bind 一次数据，不需要两套布局、两套 id、两套 findViewById。
+
+     二维码只在 HTTP 下显示（与参考应用一致）：FTP 的地址是要"填进客户端"的，
+     扫一个 ftp:// 的码并不会帮你打开任何程序——绝大多数扫码器要么不认这个协议，
+     要么打开一个什么都不做的页面。把它藏起来比让它"看起来能用"更诚实。
+     ========================================================================== -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/address_card"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_card_surface"
+    android:orientation="vertical"
+    android:paddingStart="@dimen/content_padding"
+    android:paddingTop="@dimen/content_padding_1_5x"
+    android:paddingEnd="@dimen/content_padding"
+    android:paddingBottom="@dimen/content_padding_1_5x">
+
+    <TextView
+        android:id="@+id/address_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/share_address_title"
+        android:textColor="@color/text_secondary"
+        android:textSize="13sp" />
+
+    <TextView
+        android:id="@+id/address_hint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:textColor="@color/text_secondary"
+        android:textSize="12sp"
+        tools:text="在电脑资源管理器输入这个地址" />
+
+    <LinearLayout
+        android:id="@+id/address_rows"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:orientation="vertical" />
+
+    <TextView
+        android:id="@+id/address_empty"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/content_padding_half"
+        android:lineSpacingExtra="3dp"
+        android:text="@string/share_address_empty"
+        android:textColor="@color/permission_bar_text"
+        android:textSize="13sp"
+        android:visibility="gone"
+        tools:visibility="visible" />
+
+    <LinearLayout
+        android:id="@+id/address_qr_box"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/content_padding_1_5x"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:visibility="gone"
+        tools:visibility="visible">
+
+        <ImageView
+            android:id="@+id/address_qr"
+            android:layout_width="180dp"
+            android:layout_height="180dp"
+            android:background="@color/bg_window"
+            android:contentDescription="@string/share_address_qr_hint"
+            android:padding="6dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="@string/share_address_qr_hint"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp" />
+    </LinearLayout>
+</LinearLayout>

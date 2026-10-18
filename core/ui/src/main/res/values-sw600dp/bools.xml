@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 平板（含竖屏与横屏）：导航窗格常显 + 多列详情（Windows 资源管理器形态） -->
+<resources>
+    <bool name="two_pane">true</bool>
+    <bool name="compact_rows">true</bool>
+</resources>

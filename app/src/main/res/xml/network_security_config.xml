@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  明文 HTTP 政策。
+
+  ## 为什么 base-config 必须放行明文（M2 实测修正）
+  这个文件最初写的是「默认禁止明文、只给内网开一个口子」，那段 domain-config 是：
+
+      <domain-config cleartextTrafficPermitted="true">
+          <domain includeSubdomains="true">10.0.0.0</domain>
+          <domain includeSubdomains="true">192.168.0.0</domain>
+          <domain includeSubdomains="true">172.16.0.0</domain>
+      </domain-config>
+
+  它能编译、不报错，却**完全没有作用**：network security config 的 `<domain>` 是
+  **DNS 名字后缀**匹配；主机是 IP 字面量时只做**精确**比较，`includeSubdomains`
+  并不会给你一个网段。于是 `10.0.2.2` 不匹配 `10.0.0.0`、`192.168.1.100` 不匹配
+  `192.168.0.0`——恰好把**内网 NAS 全部挡在门外**（只有字面上的那三个地址能过）。
+  实测报错：
+
+      UnknownServiceException: CLEARTEXT communication to 10.0.2.2
+      not permitted by network security policy
+
+  这条策略是**平台级、按主机名**的：OkHttp 在建连之前就会查
+  `NetworkSecurityPolicy.isCleartextTrafficPermitted(host)`，不通过则**根本不会发出
+  请求**；运行时也没有"按请求放行"的钩子。
+
+  而本应用的核心场景就是家庭 / 办公内网里的 NAS（群晖 WebDAV Server、老式共享、
+  路由器挂载的盘），地址由用户随手填写、不可能是固定几个，`http://` 在它们身上是
+  常态而不是例外。枚举网段在此路不通，所以只能在这一层整体放行。
+
+  ## 放行 ≠ 不设防
+  真正决定「会不会走明文」的门在**连接级**，而且默认关闭：
+  `WebDavSettings.allowInsecure`（连接页的「允许明文 HTTP」开关）。
+  端口不是 80/443 时，不勾它 `WebDavPaths.baseUrl` 只会拼 `https://`；
+  即使对方确实是 http，`WebDavAuth` 也会拒绝把 Basic / Digest 凭据送出去
+  （日志里是 `refusing to send credentials over plain HTTP`）。
+  即：**这一层放行的是平台的「能不能发明文」，产品层仍然逐条连接决定「发不发」。**
+
+  无线分享（M5）同样依赖这一层：它在局域网里自带一个 `http://` 服务端。
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <!--
+          信任锚保持"仅系统"：自签证书走**指纹钉扎**，不走"放行用户 CA"。
+          `WebDavClientFactory` 按 SHA-256 指纹信任**恰好那一张证书**
+          （判定顺序是先系统链、后指纹）。这样既不必把 TLS 身份校验整个关掉，
+          也不用引导用户往系统里装 CA。
+        -->
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

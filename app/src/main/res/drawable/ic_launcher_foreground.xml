@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 启动图标前景：文件夹 + 锁孔（"密"的语义），置于 108dp 画布的安全区内 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- 文件夹主体 -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M32,38 h14 l5,6 h25 a4,4 0 0 1 4,4 v22 a4,4 0 0 1 -4,4 h-44 a4,4 0 0 1 -4,-4 v-28 a4,4 0 0 1 4,-4 z" />
+
+    <!-- 锁孔（挖空，用背景色绘制） -->
+    <path
+        android:fillColor="#FF1F9D55"
+        android:pathData="M54,50 m-4.5,0 a4.5,4.5 0 1,0 9,0 a4.5,4.5 0 1,0 -9,0" />
+    <path
+        android:fillColor="#FF1F9D55"
+        android:pathData="M52.2,53 h3.6 l1.4,8 h-6.4 z" />
+</vector>

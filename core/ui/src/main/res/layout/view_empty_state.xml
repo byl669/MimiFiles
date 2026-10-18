@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/emptyRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="@dimen/content_padding_double"
+    android:visibility="gone"
+    tools:visibility="visible">
+
+    <!--
+      ⚠️ `android:tintMode="src_in"` 不是多余的（M4.1 实测）。
+      这个图标的填充色是 `@android:color/white`（占位色，见 drawable 里的说明），
+      而 `text_secondary` 是**带透明度**的语义色（深色下 `#99FFFFFF` = 60% 白）。
+      不钉死模式时，tint 会以非 SRC_IN 的方式合成：
+        · 深色下（白 tint 叠在白色填充上）→ 渲染成**不透明白**，深色底上白得刺眼（对比度 16.7）；
+        · 浅色下（黑 tint 叠在白色填充上）→ 恰好也是个灰（#707070），
+          **看起来正常**，于是这个 bug 只在深色下暴露。
+      SRC_IN 才是"用 tint 的颜色替换填充色"的正确语义，也才能让透明度按预期生效。
+    -->
+    <ImageView
+        android:id="@+id/emptyIcon"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:contentDescription="@null"
+        android:src="@drawable/ic_file_folder"
+        android:tint="@color/text_secondary"
+        android:tintMode="src_in"
+        tools:ignore="ContentDescription" />
+
+    <TextView
+        android:id="@+id/emptyTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/content_padding"
+        android:textColor="@color/text_primary"
+        android:textSize="15sp"
+        tools:text="此文件夹为空" />
+
+    <TextView
+        android:id="@+id/emptyHint"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:gravity="center"
+        android:textColor="@color/text_secondary"
+        android:textSize="13sp"
+        android:visibility="gone"
+        tools:text="粘贴或新建文件后会显示在这里"
+        tools:visibility="visible" />
+</LinearLayout>

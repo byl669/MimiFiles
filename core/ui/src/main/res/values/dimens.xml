@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 常用间距（4dp 网格） -->
+    <dimen name="content_padding">16dp</dimen>
+    <dimen name="content_padding_half">8dp</dimen>
+    <dimen name="content_padding_double">24dp</dimen>
+    <dimen name="content_padding_1_5x">12dp</dimen>
+
+    <!-- 竖屏：列表行高（触控目标 ≥ 48dp） -->
+    <dimen name="list_row_height">56dp</dimen>
+    <dimen name="list_row_height_two_line">72dp</dimen>
+
+    <!-- 横屏：Windows 资源管理器式紧凑行高 -->
+    <dimen name="compact_row_height">32dp</dimen>
+    <dimen name="compact_header_height">32dp</dimen>
+
+    <!-- 导航窗格 / 命令栏 / 功能区 / 状态栏 -->
+    <dimen name="nav_pane_width">260dp</dimen>
+    <dimen name="nav_pane_min_width">200dp</dimen>
+    <dimen name="command_bar_height">48dp</dimen>
+    <dimen name="ribbon_height">40dp</dimen>
+    <dimen name="status_bar_height">28dp</dimen>
+
+    <!-- 列表图标尺寸 -->
+    <dimen name="icon_size_row">24dp</dimen>
+    <dimen name="icon_size_row_large">40dp</dimen>
+    <dimen name="icon_size_grid">48dp</dimen>
+    <dimen name="icon_size_toolbar">24dp</dimen>
+    <dimen name="icon_size_tree">20dp</dimen>
+
+    <!-- 详细信息列宽（横屏 Windows 资源管理器形态）
+         固定宽度 + 名称列 weight=1，是让表头与数据行自动对齐的最省事做法：
+         比在代码里逐列测量同步宽度稳得多，也不怕字体缩放。 -->
+    <dimen name="details_col_size">96dp</dimen>
+    <dimen name="details_col_time">132dp</dimen>
+    <dimen name="details_col_type">88dp</dimen>
+    <dimen name="details_icon_column">28dp</dimen>
+
+    <!-- 网格 -->
+    <dimen name="grid_tile_height">104dp</dimen>
+    <dimen name="grid_min_width">96dp</dimen>
+
+    <!-- 面包屑 -->
+    <dimen name="breadcrumb_height">40dp</dimen>
+    <dimen name="breadcrumb_segment_padding">10dp</dimen>
+
+    <!-- 多选双栏（M7.16，ES 文件浏览器式）：顶栏=计数/全选/取消（轻，状态），
+         底栏=操作瓦片（重，操作）。select_action_size 仍是全局图标按钮的
+         统一尺寸，别处大量引用，不动。 -->
+    <dimen name="select_action_size">40dp</dimen>
+    <dimen name="select_top_height">52dp</dimen>
+    <dimen name="select_top_icon">20dp</dimen>
+    <dimen name="select_bottom_height">56dp</dimen>
+    <dimen name="select_bottom_icon">22dp</dimen>
+    <dimen name="select_bottom_text">11sp</dimen>
+</resources>

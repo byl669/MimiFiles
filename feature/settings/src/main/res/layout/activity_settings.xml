@@ -1,0 +1,454 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ==========================================================================
+     设置页
+     竖屏与横屏共用同一份布局：设置项本身就是"一列条目"，在平板上拉宽反而更好读
+     （不像文件列表那样需要左树右表），所以这里不做双形态、也不限最大宽度——
+     多一层 wrapper 只为控制宽度，收益不值这层嵌套。
+     例外是顶部工具栏贴的是窗口底色，滚动内容贴的是页面底色，这个层次差
+     正好把"标题栏"和"内容"分开，不需要额外画分隔线。
+     ========================================================================== -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background_in_card_page"
+    android:orientation="vertical">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/bg_window"
+        app:navigationContentDescription="@string/action_back"
+        app:navigationIcon="@drawable/ic_arrow_back"
+        app:navigationIconTint="@color/text_primary"
+        app:title="@string/settings_title"
+        app:titleTextColor="@color/text_primary" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="@dimen/content_padding"
+            android:paddingTop="@dimen/content_padding_half"
+            android:paddingEnd="@dimen/content_padding"
+            android:paddingBottom="@dimen/content_padding_double">
+
+            <!-- ══ 外观 ══════════════════════════════════════════ -->
+            <TextView
+                style="@style/MimiFilesSettingsSection"
+                android:text="@string/settings_group_appearance" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/content_padding_half"
+                android:background="@drawable/bg_card_surface"
+                android:orientation="vertical"
+                android:paddingStart="@dimen/content_padding"
+                android:paddingTop="@dimen/content_padding_1_5x"
+                android:paddingEnd="@dimen/content_padding"
+                android:paddingBottom="@dimen/content_padding_half">
+
+                <TextView
+                    style="@style/MimiFilesSettingsLabel"
+                    android:text="@string/settings_theme" />
+
+                <RadioGroup
+                    android:id="@+id/theme_group"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <com.google.android.material.radiobutton.MaterialRadioButton
+                        android:id="@+id/theme_system"
+                        style="@style/MimiFilesSettingsRadio"
+                        android:text="@string/settings_theme_system" />
+
+                    <com.google.android.material.radiobutton.MaterialRadioButton
+                        android:id="@+id/theme_light"
+                        style="@style/MimiFilesSettingsRadio"
+                        android:text="@string/settings_theme_light" />
+
+                    <com.google.android.material.radiobutton.MaterialRadioButton
+                        android:id="@+id/theme_dark"
+                        style="@style/MimiFilesSettingsRadio"
+                        android:text="@string/settings_theme_dark" />
+                </RadioGroup>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="@dimen/content_padding_half"
+                    android:background="@color/common_divider" />
+
+                <TextView
+                    style="@style/MimiFilesSettingsLabel"
+                    android:layout_marginTop="@dimen/content_padding_1_5x"
+                    android:text="@string/settings_view_mode" />
+
+                <RadioGroup
+                    android:id="@+id/view_mode_group"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <com.google.android.material.radiobutton.MaterialRadioButton
+                        android:id="@+id/view_mode_list"
+                        style="@style/MimiFilesSettingsRadio"
+                        android:text="@string/settings_view_mode_list" />
+
+                    <com.google.android.material.radiobutton.MaterialRadioButton
+                        android:id="@+id/view_mode_grid"
+                        style="@style/MimiFilesSettingsRadio"
+                        android:text="@string/settings_view_mode_grid" />
+
+                    <com.google.android.material.radiobutton.MaterialRadioButton
+                        android:id="@+id/view_mode_details"
+                        style="@style/MimiFilesSettingsRadio"
+                        android:text="@string/settings_view_mode_details" />
+                </RadioGroup>
+            </LinearLayout>
+
+            <!-- ══ 浏览 ══════════════════════════════════════════ -->
+            <TextView
+                style="@style/MimiFilesSettingsSection"
+                android:text="@string/settings_group_browse" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/content_padding_half"
+                android:background="@drawable/bg_card_surface"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="@dimen/content_padding"
+                android:paddingTop="@dimen/content_padding_1_5x"
+                android:paddingEnd="@dimen/content_padding"
+                android:paddingBottom="@dimen/content_padding_1_5x">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        style="@style/MimiFilesSettingsTitle"
+                        android:text="@string/settings_show_hidden" />
+
+                    <TextView
+                        style="@style/MimiFilesSettingsSummary"
+                        android:text="@string/settings_show_hidden_summary" />
+                </LinearLayout>
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/switch_show_hidden"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/content_padding"
+                    android:contentDescription="@string/settings_show_hidden" />
+            </LinearLayout>
+
+            <!-- ══ 播放（M7.6）═════════════════════════════════════
+                 行 = 详情（点整行弹选择框），按钮位只放**当前值** ——
+                 与「软件更新」行同样的"看详情 / 做动作"分工：可点目标唯一。 -->
+            <TextView
+                style="@style/MimiFilesSettingsSection"
+                android:text="@string/settings_group_playback" />
+
+            <LinearLayout
+                android:id="@+id/player_speed_row"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/content_padding_half"
+                android:background="@drawable/bg_card_surface"
+                android:foreground="?attr/selectableItemBackground"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="@dimen/content_padding"
+                android:paddingTop="@dimen/content_padding_1_5x"
+                android:paddingEnd="@dimen/content_padding"
+                android:paddingBottom="@dimen/content_padding_1_5x">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        style="@style/MimiFilesSettingsTitle"
+                        android:text="@string/settings_player_speed" />
+
+                    <TextView
+                        style="@style/MimiFilesSettingsSummary"
+                        android:text="@string/settings_player_speed_summary" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/player_speed_value"
+                    style="@style/MimiFilesSettingsSummary"
+                    android:layout_marginStart="@dimen/content_padding"
+                    android:layout_marginTop="0dp"
+                    android:textSize="15sp"
+                    tools:text="1 倍速" />
+            </LinearLayout>
+
+            <!-- ══ 无线分享（M4）══════════════════════════════════
+                 按 `ShareServer.type` 分组（方案 §10.4「与设置统一」）：
+                 常驻共享的端口是**每协议各自的**（FTP 2121 / HTTP 8080），
+                 混成一个"默认端口"会让用户改了 HTTP 却以为 FTP 也变了。 -->
+            <TextView
+                style="@style/MimiFilesSettingsSection"
+                android:text="@string/settings_group_share" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/content_padding_half"
+                android:background="@drawable/bg_card_surface"
+                android:orientation="vertical"
+                android:paddingStart="@dimen/content_padding"
+                android:paddingTop="@dimen/content_padding_1_5x"
+                android:paddingEnd="@dimen/content_padding"
+                android:paddingBottom="@dimen/content_padding_1_5x">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            style="@style/MimiFilesSettingsTitle"
+                            android:text="@string/settings_share_keep_screen" />
+
+                        <TextView
+                            style="@style/MimiFilesSettingsSummary"
+                            android:text="@string/settings_share_keep_screen_summary" />
+                    </LinearLayout>
+
+                    <com.google.android.material.materialswitch.MaterialSwitch
+                        android:id="@+id/switch_share_keep_screen"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/content_padding"
+                        android:contentDescription="@string/settings_share_keep_screen" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/content_padding_1_5x"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            style="@style/MimiFilesSettingsTitle"
+                            android:text="@string/settings_share_stop_on_exit" />
+
+                        <TextView
+                            style="@style/MimiFilesSettingsSummary"
+                            android:text="@string/settings_share_stop_on_exit_summary" />
+                    </LinearLayout>
+
+                    <com.google.android.material.materialswitch.MaterialSwitch
+                        android:id="@+id/switch_share_stop_on_exit"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/content_padding"
+                        android:contentDescription="@string/settings_share_stop_on_exit" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/content_padding_1_5x"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            style="@style/MimiFilesSettingsTitle"
+                            android:text="@string/settings_share_port_http" />
+
+                        <TextView
+                            style="@style/MimiFilesSettingsSummary"
+                            android:text="@string/settings_share_port_summary" />
+                    </LinearLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/share_port_http"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:minHeight="36dp"
+                        android:textSize="15sp"
+                        tools:text="8080" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/content_padding_half"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            style="@style/MimiFilesSettingsTitle"
+                            android:text="@string/settings_share_port_ftp" />
+                    </LinearLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/share_port_ftp"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:minHeight="36dp"
+                        android:textSize="15sp"
+                        tools:text="2121" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- ══ 关于 ══════════════════════════════════════════
+                 这一组现在有两行（软件更新 / 版本），所以是**竖排卡片 + 内部分隔线**
+                 而不是早期的"单行横向"。分隔线只有 1dp 且用 common_divider 的半透明黑，
+                 在深色下自动变成半透明白 —— 与其它分组卡片的分隔方式保持一致。 -->
+            <TextView
+                style="@style/MimiFilesSettingsSection"
+                android:text="@string/settings_group_about" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/content_padding_half"
+                android:background="@drawable/bg_card_surface"
+                android:orientation="vertical"
+                android:paddingStart="@dimen/content_padding"
+                android:paddingTop="@dimen/content_padding_1_5x"
+                android:paddingEnd="@dimen/content_padding"
+                android:paddingBottom="@dimen/content_padding_1_5x">
+
+                <!--
+                  软件更新（M5）。
+
+                  布局分工：**行 = 详情，按钮 = 动作**。
+                  两者都触发"检查更新"会让用户猜不准点哪里；分成"看详情 / 做动作"之后，
+                  每个状态下的可点目标都是唯一的。
+
+                  `android:background="?attr/selectableItemBackground"` 给整行点击反馈——
+                  没有它，行可点但看起来不可点（这是"点了没反应"最常见的成因之一）。
+                -->
+                <LinearLayout
+                    android:id="@+id/update_row"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="?attr/selectableItemBackground"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            style="@style/MimiFilesSettingsTitle"
+                            android:text="@string/settings_update_title" />
+
+                        <TextView
+                            android:id="@+id/update_summary"
+                            style="@style/MimiFilesSettingsSummary"
+                            tools:text="当前 0.4.1-M4.1" />
+
+                        <ProgressBar
+                            android:id="@+id/update_progress"
+                            style="?android:attr/progressBarStyleHorizontal"
+                            android:layout_width="match_parent"
+                            android:layout_height="4dp"
+                            android:layout_marginTop="6dp"
+                            android:max="100"
+                            android:visibility="gone"
+                            tools:visibility="visible" />
+                    </LinearLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/update_action"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/content_padding_half"
+                        android:minHeight="36dp"
+                        android:textSize="15sp"
+                        tools:text="检查更新" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="@dimen/content_padding_half"
+                    android:background="@color/common_divider" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/content_padding_half"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        style="@style/MimiFilesSettingsTitle"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:text="@string/settings_about_version" />
+
+                    <TextView
+                        android:id="@+id/version_value"
+                        style="@style/MimiFilesSettingsSummary"
+                        android:layout_marginTop="0dp"
+                        android:textIsSelectable="true"
+                        tools:text="0.1.0" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <TextView
+                style="@style/MimiFilesSettingsSummary"
+                android:layout_marginTop="@dimen/content_padding"
+                android:layout_marginStart="4dp"
+                android:text="@string/settings_about_desc" />
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

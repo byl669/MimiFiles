@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  文本预览。
+
+  ## 为什么用 RecyclerView 装"页"而不是一个大 TextView
+  1 GB 的日志文件不可能塞进一个 `TextView`：既会 OOM，`onMeasure` 也会卡住几十秒。
+  这里把文件按 32 KB 切成"页"，一页 = 一个 item，于是**虚拟化是现成的**——
+  RecyclerView 只测量可见的那两三页。
+  32 KB 是权衡结果：约 500~1000 行，单页 measure 只要几毫秒；再大就会出现"滚到某页卡一下"。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_window"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/status_bar_bg"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/content_padding"
+        android:paddingTop="4dp"
+        android:paddingEnd="@dimen/content_padding"
+        android:paddingBottom="4dp">
+
+        <TextView
+            android:id="@+id/text_encoding"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp" />
+
+        <TextView
+            android:id="@+id/text_progress"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/text_pages"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingStart="@dimen/content_padding"
+        android:paddingEnd="@dimen/content_padding"
+        android:paddingBottom="@dimen/content_padding_double"
+        android:scrollbarStyle="insideInset" />
+
+    <TextView
+        android:id="@+id/text_footer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/status_bar_bg"
+        android:paddingStart="@dimen/content_padding"
+        android:paddingTop="@dimen/content_padding_half"
+        android:paddingEnd="@dimen/content_padding"
+        android:paddingBottom="@dimen/content_padding_half"
+        android:textColor="@color/text_secondary"
+        android:textSize="12sp"
+        android:visibility="gone" />
+</LinearLayout>

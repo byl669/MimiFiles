@@ -1,0 +1,322 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ==========================================================================
+     文件浏览主界面 —— 竖屏单栏 / 横屏·平板左树右表（Windows 资源管理器形态）
+
+     一份布局覆盖两种形态，切换靠 @bool/two_pane（见 core:ui 的 values-land /
+     values-sw600dp）：
+       · two_pane = false（手机竖屏）→ 导航窗格隐藏，靠工具栏「存储」按钮拉出抽屉
+       · two_pane = true （横屏/平板）→ 抽屉锁定为常开，成为静态左树；
+                                        @dimen/nav_pane_width 在横屏是 220dp、
+                                        平板横屏是 280dp
+
+     为什么不做两份 layout：两份布局意味着两套 id、两套 findViewById，
+     迟早出现"竖屏能点、横屏点不动"的分支漂移。这里结构完全一致，
+     只有几何尺寸与显隐由资源限定符决定。
+
+     DrawerLayout 的锁定开：DrawerLayout 的抽屉是**覆盖**在内容上的，
+     所以锁定为常开时内容需要自己让出窗格宽度（见 DocumentsActivity 里的
+     contentInset）。这是它相对 DrawerLayout 默认行为的唯一额外处理。
+
+     ⚠️ 用的是自研的 TwoPaneDrawerLayout 而不是原生 DrawerLayout：
+     原生实现在"抽屉被锁成常开"时会把内容列的触摸**全部吞掉**（右半边
+     点不动、滑不动），原因与推理见该类顶部注释。双栏形态下由
+     `allowTouchPassthrough` 把触摸放行，单栏形态行为完全不变。
+     ========================================================================== -->
+<com.miyuetech.mimifiles.feature.browser.TwoPaneDrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/drawer_layout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_window">
+
+    <!-- ══════════════ ① 主内容（必须是第一个子视图）══════════════ -->
+    <LinearLayout
+        android:id="@+id/content_root"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/bg_window"
+        android:orientation="vertical">
+
+        <!-- 命令栏。M1 只放定位与视图控制；横屏的多列列头在列表内部 -->
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="@color/bg_window"
+            app:navigationContentDescription="@string/action_up"
+            app:navigationIcon="@drawable/ic_arrow_upward"
+            app:navigationIconTint="@color/text_primary"
+            app:titleTextColor="@color/text_primary"
+            tools:title="DCIM" />
+
+        <!-- 权限降级提示条：只在非完整档位出现，给一个直达授权页的入口 -->
+        <LinearLayout
+            android:id="@+id/permission_bar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/permission_bar_bg"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="@dimen/content_padding"
+            android:paddingTop="6dp"
+            android:paddingEnd="@dimen/content_padding_half"
+            android:paddingBottom="6dp"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <TextView
+                android:id="@+id/permission_hint"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textColor="@color/text_primary"
+                android:textSize="13sp"
+                tools:text="仅能访问你授权的 1 个目录" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/permission_action"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minHeight="36dp"
+                android:text="@string/browser_permission_grant"
+                android:textSize="13sp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/permission_saf"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minHeight="36dp"
+                android:text="@string/browser_permission_add_dir"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <!-- 地址栏面包屑 -->
+        <com.miyuetech.mimifiles.core.ui.BreadcrumbView
+            android:id="@+id/breadcrumb"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/breadcrumb_height"
+            android:background="@color/bg_window" />
+
+        <!-- 多选工具栏：默认隐藏，进入多选模式后取代面包屑位置 -->
+        <com.miyuetech.mimifiles.core.ui.MultiSelectBar
+            android:id="@+id/select_bar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            tools:visibility="visible" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/common_divider" />
+
+        <!-- 详细信息列头：只在「详细信息」视图下出现。
+             放在列表**外面**而不是做成列表的第一个 item，是为了让表头在滚动时
+             始终可见（Windows 资源管理器的行为），也省掉一个 viewType。 -->
+        <include
+            android:id="@+id/details_header"
+            layout="@layout/item_details_header"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            tools:visibility="visible" />
+
+        <!-- 列表 + 空态。用 FrameLayout 叠放，避免"空态出现/消失"引起列表重建 -->
+        <FrameLayout
+            android:id="@+id/list_container"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/file_list"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:paddingBottom="8dp"
+                android:scrollbars="vertical"
+                tools:listitem="@layout/item_file_row" />
+
+            <include
+                android:id="@+id/empty_state"
+                layout="@layout/view_empty_state"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+        </FrameLayout>
+
+        <!-- 状态栏：横屏/平板才显示（Windows 资源管理器形态的底栏） -->
+        <LinearLayout
+            android:id="@+id/status_bar"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/status_bar_height"
+            android:background="@color/status_bar_bg"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="@dimen/content_padding_half"
+            android:paddingEnd="@dimen/content_padding_half"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <TextView
+                android:id="@+id/status_summary"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp"
+                tools:text="12 个项目（3 个文件夹，9 个文件）· 已选 2 项" />
+
+            <TextView
+                android:id="@+id/status_clipboard"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/content_padding_half"
+                android:textColor="@color/primary"
+                android:textSize="12sp"
+                android:visibility="gone"
+                tools:text="剪切板 2 项"
+                tools:visibility="visible" />
+        </LinearLayout>
+
+        <!--
+          多选「底栏」（M7.16，ES 文件浏览器式上/下双栏的下半）：
+          图标上文字下的操作瓦片均分整行，固定在内容区最底部（拇指可达性最好）。
+          顶栏 select_bar 只管计数/全选/取消；操作主次拆分见 MultiSelectBottomBar。
+        -->
+        <com.miyuetech.mimifiles.core.ui.MultiSelectBottomBar
+            android:id="@+id/select_bottom_bar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            tools:visibility="visible" />
+    </LinearLayout>
+
+    <!-- ══════════════ ② 导航窗格（抽屉 / 静态左树）══════════════ -->
+    <LinearLayout
+        android:id="@+id/nav_pane"
+        android:layout_width="@dimen/nav_pane_width"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:background="@color/nav_pane_bg"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/nav_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingStart="@dimen/content_padding_1_5x"
+                android:paddingTop="@dimen/content_padding"
+                android:paddingEnd="@dimen/content_padding_1_5x"
+                android:paddingBottom="2dp"
+                android:text="@string/mimi_app_name"
+                android:textColor="@color/text_primary"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/nav_subtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingStart="@dimen/content_padding_1_5x"
+                android:paddingEnd="@dimen/content_padding_1_5x"
+                android:paddingBottom="@dimen/content_padding_half"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp"
+                tools:text="12 个项目" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/common_divider" />
+
+            <com.miyuetech.mimifiles.core.ui.NavigationTreeView
+                android:id="@+id/nav_tree"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:paddingTop="4dp"
+                android:paddingBottom="4dp"
+                android:scrollbars="vertical" />
+
+            <!-- 无任何可浏览的存储时的说明（也提供一条去授权的捷径） -->
+            <TextView
+                android:id="@+id/nav_hint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="@dimen/content_padding_1_5x"
+                android:text="@string/browser_nav_empty"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp"
+                android:visibility="gone"
+                tools:visibility="visible" />
+
+            <!--
+              窗格底部的功能入口区（M7.2 起「无线分享 / 网络连接 / 设置」三连）。
+
+              放在窗格**底部**而不是塞进导航树，理由是那个树是**目录结构**，
+              而这三项都不是目录。混进去会让"树 = 文件位置"这条心智模型破掉，
+              用户会以为点了它们会进到某个文件夹里。
+              固定在底部还顺带带来一个好处：无论当前在导航树里滚到哪里，
+              它们都可见、可点。M7.2 把原来藏在右上角溢出菜单里的
+              「网络连接」「设置」也挪到这里——三项功能入口位置固定、不用翻菜单。
+            -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/common_divider" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/nav_share"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:gravity="start|center_vertical"
+                android:text="@string/browser_action_share_wifi"
+                android:textSize="14sp"
+                app:icon="@drawable/ic_share"
+                app:iconTint="@color/primary" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/nav_connections"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:gravity="start|center_vertical"
+                android:text="@string/browser_action_connections"
+                android:textSize="14sp"
+                app:icon="@drawable/ic_storage"
+                app:iconTint="@color/primary" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/nav_settings"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:gravity="start|center_vertical"
+                android:text="@string/action_settings"
+                android:textSize="14sp"
+                app:icon="@drawable/ic_settings"
+                app:iconTint="@color/primary" />
+        </LinearLayout>
+
+        <!-- 窗格与内容的分隔线。窗格隐藏时它一并被裁掉（宽度为 0 的父级） -->
+        <View
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:background="@color/common_divider" />
+    </LinearLayout>
+</com.miyuetech.mimifiles.feature.browser.TwoPaneDrawerLayout>

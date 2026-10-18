@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ══════════════════════════════════════════════════════════════════════════
+  仅 debug 变体生效的清单覆盖 —— **冒烟测试钩子**
+  ══════════════════════════════════════════════════════════════════════════
+
+  ## 为什么需要它
+  预览页与播放页在正式清单里是 `android:exported="false"`（正确做法：它们不该被外部拉起）。
+  但这样一来，`adb shell am start` 就**无权**启动它们——
+  错误是 `SecurityException: … not exported from uid 10192`（调用者是 shell，uid 2000）。
+  `run-as` 也救不了：它只改执行进程的 uid，`am` 仍然以 shell 身份向系统服务发请求。
+
+  ## 为什么不"干脆全部走浏览页点击"
+  那条路是真实用户路径，但把它用在**每一条**预览用例上会带来一个具体危害：
+  "预览坏了"与"列表里点偏了"两种失败长得一模一样（都表现为"没进预览页"），
+  而它们要修的地方完全不同。冒烟的价值就在于失败时能立刻指向原因。
+
+  折中方案正是这个文件：内容类用例用 `am start` 直接喂 `FsPath`（见 m3-smoke.sh 的
+  `launch_preview`），而"浏览页 → 预览页"这条集成链路单独由 N11 覆盖。
+
+  ## 安全性
+  只覆盖 debug 变体（`src/debug/` 不会进入 release 包），而 debug 包只在开发机上安装。
+  release 包里这两个页面依旧不可被外部启动——`tools:replace` 的语义是"仅在本变体替换"。
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application>
+
+        <activity
+            android:name="com.miyuetech.mimifiles.feature.preview.PreviewActivity"
+            android:exported="true"
+            tools:replace="android:exported" />
+
+        <activity
+            android:name="com.miyuetech.mimifiles.feature.player.VideoPlayerActivity"
+            android:exported="true"
+            tools:replace="android:exported" />
+
+        <!--
+          分享面板（M4）。
+
+          这条钩子的必要性比上面两条更强：无线分享的**全部**验收判据都在
+          "宿主机能不能从局域网连进来"上，而启动它的唯一途径是界面点击
+          （导航窗格 / 菜单 / 多选），那些点击本身没法被 `adb` 稳定复现
+          （列表顺序、滚动位置都会变）。放行 exported 之后，
+          `scripts/m4-smoke.sh` 可以直接把"共享哪个目录、只读还是可写、匿名还是账密"
+          当作参数喂进去，从而让每一条用例都只验证**分享本身**。
+        -->
+        <activity
+            android:name="com.miyuetech.mimifiles.feature.share.SharePanelActivity"
+            android:exported="true"
+            tools:replace="android:exported" />
+
+        <!--
+          连接编辑页（M4.1）。
+
+          与上面三条同理，但这次要复现的是一条**用户报告的真实故障**：
+          "填完服务器信息点测试有报错"。要判定它究竟是应用的问题、还是网络/凭据的问题，
+          必须能反复地、用**已知可用**的服务端去打这一页 —— 而"从连接列表点新建"
+          这条路径（列表顺序、滚动位置）没法被 adb 稳定复现。
+          exported 之后 `scripts/m41-smoke.sh` 可以直接拉起这一页并按字段 id 填表，
+          让"SMB 能不能连上"这件事变成一个**可重复的实验**而不是一次性的人工观察。
+        -->
+        <activity
+            android:name="com.miyuetech.mimifiles.feature.connection.ConnectionEditActivity"
+            android:exported="true"
+            tools:replace="android:exported" />
+
+        <!--
+          设置页（M5）。
+
+          这条与上面几条的动机不同：它不是为了"绕过界面点击"，而是为了
+          **喂一个参数**。软件更新的验收要把同一个 debug 包分别指向两个清单地址 ——
+          生产通道（真 HTTPS、真清单，验"能不能拉到、有没有新版"）与本机镜像
+          （验"下载 → 三重校验 → 安装器"整段）。清单地址是编译期常量，
+          没有这个入口就只能改代码重编两次包。
+
+          参数是 `update.url` 这个字符串 extra（写法见 scripts/m5-update-smoke.sh），
+          由 `SettingsActivity.applyDebugUpdateOverrides` 消费，而它调用的
+          `overrideManifestUrlForTest` **自己**检查 FLAG_DEBUGGABLE，
+          所以 release 包里既没有这条 exported 声明，接口本身也会拒绝。
+        -->
+        <activity
+            android:name="com.miyuetech.mimifiles.feature.settings.SettingsActivity"
+            android:exported="true"
+            tools:replace="android:exported" />
+    </application>
+</manifest>

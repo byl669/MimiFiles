@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 「适配屏幕」：四个角括号。选它而不是放大镜，是因为动作是"把图复原到整屏可见" -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M4,4h14v4h-10v10h-4zM30,4h14v14h-4v-10h-10zM4,30h4v10h10v4h-14zM44,30v14h-14v-4h10v-10z" />
+</vector>

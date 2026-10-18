@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- PDF 的一页：白纸 + 轻微投影。阴影用 elevation 而不是九宫格切图，省一张资源 -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingStart="@dimen/content_padding"
+    android:paddingEnd="@dimen/content_padding"
+    android:paddingBottom="@dimen/content_padding">
+
+    <ImageView
+        android:id="@+id/pdf_page_image"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:adjustViewBounds="true"
+        android:background="@color/common_card_background_color"
+        android:contentDescription="@string/preview_pdf_page_placeholder"
+        android:elevation="2dp"
+        android:scaleType="fitCenter" />
+</FrameLayout>

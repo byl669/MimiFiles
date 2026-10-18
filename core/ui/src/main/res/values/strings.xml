@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- app_name 由 :app 模块唯一定义，此处不重复以免资源覆盖歧义 -->
+    <string name="mimi_app_name" translatable="false">密密文件管理</string>
+    <string name="mimi_app_name_en" translatable="false">Mimi Files</string>
+
+    <!-- ── 详细信息列头 ─────────────────────────────────────────── -->
+    <string name="column_name">名称</string>
+    <string name="column_size">大小</string>
+    <string name="column_modified">修改时间</string>
+    <string name="column_type">类型</string>
+
+    <!-- ── 通用动作 ─────────────────────────────────────────────── -->
+    <string name="action_up">上一级</string>
+    <string name="action_back">返回</string>
+    <string name="action_refresh">刷新</string>
+    <string name="action_sort">排序</string>
+    <string name="action_view_mode">视图</string>
+    <string name="action_new_folder">新建文件夹</string>
+    <string name="action_search">搜索</string>
+    <string name="action_more">更多</string>
+    <string name="action_close">关闭</string>
+    <string name="action_settings">设置</string>
+
+    <!-- ── 多选操作 ─────────────────────────────────────────────── -->
+    <string name="action_delete">删除</string>
+    <string name="action_rename">重命名</string>
+    <string name="action_copy">复制</string>
+    <string name="action_cut">剪切</string>
+    <string name="action_paste">粘贴</string>
+    <string name="action_select_all">全选</string>
+    <string name="action_add_to_home">添加到桌面</string>
+    <string name="action_favorite">收藏</string>
+    <string name="action_unfavorite">取消收藏</string>
+    <string name="action_share">分享</string>
+    <string name="action_info">属性</string>
+
+    <!-- ── 排序项 ───────────────────────────────────────────────── -->
+    <string name="sort_by_name">名称</string>
+    <string name="sort_by_size">大小</string>
+    <string name="sort_by_modified">修改时间</string>
+    <string name="sort_by_type">类型</string>
+    <string name="sort_ascending">升序</string>
+    <string name="sort_descending">降序</string>
+
+    <!-- ── 视图项 ───────────────────────────────────────────────── -->
+    <string name="view_list">列表</string>
+    <string name="view_grid">网格</string>
+    <string name="view_details">详细信息</string>
+
+    <!-- ── 空态 ─────────────────────────────────────────────────── -->
+    <string name="empty_folder">此文件夹为空</string>
+    <string name="empty_folder_hint">粘贴或新建文件后会显示在这里</string>
+    <string name="empty_no_permission">没有访问权限</string>
+    <string name="loading">正在读取…</string>
+
+    <!-- ── 多选双栏（M7.16，ES 式上/下栏）────────────────────────── -->
+    <!-- 顶栏计数显示 N/M（ES 同款），无障碍读法保留完整句子 -->
+    <string name="select_ratio_a11y">已选 %1$d 项，共 %2$d 项</string>
+    <string name="select_clear">取消选择</string>
+    <string name="select_cancel">取消</string>
+
+    <!-- ── 导航树 ───────────────────────────────────────────────── -->
+    <string name="nav_quick_access">快速访问</string>
+    <string name="nav_storage">存储</string>
+</resources>

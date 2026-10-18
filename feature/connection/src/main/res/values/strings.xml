@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- ── 连接列表 ─────────────────────────────────────────── -->
+    <string name="connections_title">网络连接</string>
+    <string name="connections_add">添加连接</string>
+    <string name="connections_empty_title">还没有网络连接</string>
+    <string name="connections_empty_hint">点右下角的 + 添加 SMB（局域网共享）\n或 WebDAV（云盘 / NAS 套件）</string>
+    <string name="connections_count">共 %1$d 个连接</string>
+
+    <!-- ── 条目操作 ─────────────────────────────────────────── -->
+    <string name="connection_action_more">更多操作</string>
+    <string name="connection_action_edit">编辑</string>
+    <string name="connection_action_test">测试连接</string>
+    <string name="connection_action_delete">删除</string>
+    <string name="connection_delete_title">删除连接</string>
+    <string name="connection_delete_message">将删除「%1$s」及其保存的密码。已钉到桌面的快捷方式会失效。</string>
+    <string name="connection_deleted">已删除「%1$s」</string>
+
+    <!-- ── 编辑表单 ─────────────────────────────────────────── -->
+    <string name="connection_new_title">新建连接</string>
+    <string name="connection_edit_title">编辑连接</string>
+    <string name="connection_type">类型</string>
+    <string name="connection_type_smb">SMB（局域网共享）</string>
+    <string name="connection_type_webdav">WebDAV（网盘 / 云盘）</string>
+    <string name="connection_label">显示名称</string>
+    <string name="connection_label_hint">例如：客厅 NAS</string>
+    <string name="connection_host">服务器地址</string>
+    <string name="connection_host_hint">例如：192.168.1.100 或 nas.local</string>
+    <string name="connection_port">端口</string>
+    <string name="connection_port_hint">留空用默认（SMB 445 / WebDAV 443）</string>
+    <string name="connection_share">共享名</string>
+    <string name="connection_share_hint">例如：home（必填）</string>
+    <string name="connection_root_path">路径</string>
+    <string name="connection_root_path_hint">例如：/dav 或 /remote.php/dav/files/用户名</string>
+    <string name="connection_username">用户名</string>
+    <string name="connection_password">密码</string>
+    <string name="connection_password_keep">留空表示不修改已保存的密码</string>
+    <string name="connection_domain">域</string>
+    <string name="connection_domain_hint">域环境才需要，可留空</string>
+
+    <string name="connection_advanced">高级选项</string>
+    <string name="connection_advanced_collapse">收起高级选项</string>
+    <string name="connection_advanced_anonymous">匿名登录</string>
+    <string name="connection_advanced_signing">启用 SMB 签名</string>
+    <string name="connection_advanced_signing_hint">现代服务端建议开启；老设备连不上时关掉</string>
+    <string name="connection_advanced_force_smb1">强制 SMB1</string>
+    <string name="connection_advanced_force_smb1_hint">只用于确认仅支持 SMB1 的老设备</string>
+    <string name="connection_advanced_encoding">文件名编码</string>
+    <string name="connection_advanced_encoding_hint">SMB1 下中文乱码时改为 GBK</string>
+    <string name="connection_advanced_allow_insecure">允许明文 HTTP</string>
+    <string name="connection_advanced_allow_insecure_hint">关闭时不会在 HTTP 上发送密码（推荐）</string>
+    <string name="connection_advanced_fingerprint">信任证书指纹</string>
+    <string name="connection_advanced_fingerprint_hint">自签证书时填写 SHA-256 指纹，留空则用系统信任链</string>
+
+    <string name="connection_save">保存</string>
+    <string name="connection_test">测试</string>
+    <string name="connection_testing">正在测试…</string>
+    <string name="connection_menu_clear_password">清除已保存的密码</string>
+    <string name="connection_password_cleared">已清除保存的密码</string>
+    <string name="connection_discard_title">放弃修改？</string>
+    <string name="connection_discard_message">表单里有尚未保存的内容，返回将丢失。</string>
+    <string name="connection_discard_confirm">放弃</string>
+    <string name="connection_saved">已保存「%1$s」</string>
+    <string name="connection_saved_no_password">连接已保存，但本机无法加密存储密码，请每次连接时重新输入</string>
+    <string name="connection_missing">这条连接已不存在</string>
+    <string name="connection_duplicate_title">已存在相同连接</string>
+    <string name="connection_duplicate_message">「%1$s」指向同一个位置（%2$s）。要覆盖它还是返回修改？</string>
+    <string name="connection_duplicate_overwrite">覆盖</string>
+    <string name="connection_duplicate_back">返回修改</string>
+
+    <string name="connection_error_host_required">请填写服务器地址</string>
+    <string name="connection_error_share_required">SMB 必须填写共享名</string>
+    <string name="connection_error_port">端口需为 1–65535 之间的数字</string>
+
+    <string name="connection_test_success">连接成功（%1$s）</string>
+    <string name="connection_test_failed">连接失败：%1$s</string>
+
+    <string name="connection_badge_insecure">明文</string>
+    <string name="connection_badge_anonymous">匿名</string>
+    <string name="connection_no_password">未保存密码</string>
+
+</resources>

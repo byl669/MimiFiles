@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  行选中态的"前景"层。
+  用 foreground 而不是 background：background 要留给 ?attr/selectableItemBackground
+  的水波纹，两者叠加（foreground 在上）才能既有按下反馈又有选中高亮。
+  foreground 需要 API 23，本项目 minSdk 24。
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_activated="true" android:drawable="@color/list_row_bg_selected" />
+    <item android:drawable="@android:color/transparent" />
+</selector>

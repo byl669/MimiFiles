@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  详细信息列头。每个可排序列自己就是按钮，点击即切换排序；
+  当前排序列由代码着 primary 色，比额外画一个三角箭头更省事，也更不容易错位。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/compact_header_height"
+    android:background="@color/list_header_bg"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="8dp"
+    android:paddingEnd="8dp">
+
+    <View
+        android:layout_width="@dimen/details_icon_column"
+        android:layout_height="1dp" />
+
+    <TextView
+        android:id="@+id/headerName"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:background="?attr/selectableItemBackground"
+        android:ellipsize="end"
+        android:gravity="center_vertical"
+        android:maxLines="1"
+        android:text="@string/column_name"
+        android:textColor="@color/text_secondary"
+        android:textSize="12sp" />
+
+    <TextView
+        android:id="@+id/headerSize"
+        android:layout_width="@dimen/details_col_size"
+        android:layout_height="match_parent"
+        android:background="?attr/selectableItemBackground"
+        android:ellipsize="end"
+        android:gravity="center_vertical|end"
+        android:maxLines="1"
+        android:text="@string/column_size"
+        android:textColor="@color/text_secondary"
+        android:textSize="12sp" />
+
+    <TextView
+        android:id="@+id/headerTime"
+        android:layout_width="@dimen/details_col_time"
+        android:layout_height="match_parent"
+        android:background="?attr/selectableItemBackground"
+        android:ellipsize="end"
+        android:gravity="center_vertical|end"
+        android:maxLines="1"
+        android:text="@string/column_modified"
+        android:textColor="@color/text_secondary"
+        android:textSize="12sp" />
+
+    <TextView
+        android:id="@+id/headerType"
+        android:layout_width="@dimen/details_col_type"
+        android:layout_height="match_parent"
+        android:background="?attr/selectableItemBackground"
+        android:ellipsize="end"
+        android:gravity="center_vertical|end"
+        android:maxLines="1"
+        android:text="@string/column_type"
+        android:textColor="@color/text_secondary"
+        android:textSize="12sp" />
+</LinearLayout>

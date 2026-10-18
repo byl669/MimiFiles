@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 命令栏菜单。
+     顺序即优先级：Toolbar 按声明顺序分配 ifRoom 的图标位置，所以要按使用频率排。
+     实测 411dp 宽的竖屏手机只能放下 3 个图标（还有标题要留地方），
+     因此「上一级 / 视图 / 排序」占图标位，其余进溢出菜单。 -->
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <!-- 仅竖屏出现：横屏时导航窗格常显，左侧导航图标本身已经是「上一级」 -->
+    <item
+        android:id="@+id/action_up"
+        android:icon="@drawable/ic_arrow_upward"
+        android:title="@string/action_up"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_view_mode"
+        android:icon="@drawable/ic_view_list"
+        android:title="@string/action_view_mode"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_sort"
+        android:icon="@drawable/ic_sort"
+        android:title="@string/action_sort"
+        app:showAsAction="ifRoom" />
+
+    <!-- 搜索（M6 · P1-5）。
+         ⚠️ 这里**刻意不写** `app:actionViewClass`。
+         那种写法把 `androidx.appcompat.widget.SearchView` 这个**类名当字符串**放在资源里，
+         由 AppCompat 在 inflation 时反射构造 —— 而"靠字符串反射拿到的类被 R8 裁掉"
+         正是方案 §12.5 记下的那类静默失效（M5.1 的 MBassador 事故）。
+         `SearchView` 由代码 `SearchView(this)` 直接构造（见 DocumentsActivity.setupSearch），
+         构造器是**直接引用**，R8 一定留得住。 -->
+    <item
+        android:id="@+id/action_search"
+        android:icon="@drawable/ic_search"
+        android:title="@string/browser_action_search"
+        app:showAsAction="ifRoom|collapseActionView" />
+
+    <item
+        android:id="@+id/action_new_folder"
+        android:icon="@drawable/ic_create_folder"
+        android:title="@string/action_new_folder"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_paste"
+        android:icon="@drawable/ic_content_paste"
+        android:title="@string/action_paste"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_select_all"
+        android:title="@string/action_select_all"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_show_hidden"
+        android:checkable="true"
+        android:title="@string/browser_action_show_hidden"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_pin_current"
+        android:title="@string/browser_action_pin_current"
+        app:showAsAction="never" />
+</menu>

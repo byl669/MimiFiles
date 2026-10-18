@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 形态开关：竖屏单栏（抽屉式导航） -->
+<resources>
+    <!-- true = 左侧导航窗格常显（横屏/平板）；false = 导航收进抽屉（竖屏手机） -->
+    <bool name="two_pane">false</bool>
+    <!-- true = 列表使用 Windows 资源管理器式紧凑行高（32dp） -->
+    <bool name="compact_rows">false</bool>
+</resources>

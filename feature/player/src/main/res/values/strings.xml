@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="player_back">返回</string>
+    <string name="player_prev">上一个</string>
+    <string name="player_next">下一个</string>
+    <string name="player_brightness">亮度 %1$d%%</string>
+    <string name="player_volume">音量 %1$d%%</string>
+    <string name="player_seek_forward">快进 %1$s</string>
+    <string name="player_seek_backward">快退 %1$s</string>
+    <string name="player_resume_from">已从 %1$s 继续播放</string>
+    <string name="player_error_title">这个视频播放失败</string>
+    <string name="player_error_decoder">硬解与系统软解都没能播放这个视频（常见于 HEVC 10-bit / AV1 这类设备缺少解码器的编码），可以交给其它播放器试试。</string>
+    <string name="player_error_generic">文件可能已损坏、位置不可达，或格式不被支持。</string>
+    <string name="player_sw_decode_retry">硬件解码失败，已改用软件解码重试</string>
+    <string name="player_open_with">用其他应用打开</string>
+    <string name="player_no_more">已经到最后一个视频了</string>
+    <string name="player_pip_unsupported">此设备不支持画中画</string>
+    <string name="player_rotate_landscape">横屏播放</string>
+    <string name="player_rotate_portrait">竖屏播放</string>
+    <string name="player_rotate_auto">已恢复跟随系统方向</string>
+    <string name="player_rotate_synced_landscape">识别到手机横着拿，正在转横屏；长按按钮恢复自动跟随</string>
+    <string name="player_rotate_synced_portrait">识别到手机竖着拿，正在转竖屏；长按按钮恢复自动跟随</string>
+    <string name="player_rotate_already_landscape">手机正横着拿，画面已经是横屏（已锁定）</string>
+    <string name="player_rotate_already_portrait">手机正竖着拿，画面已经是竖屏（已锁定）</string>
+    <string name="player_rotate_flat">手机平放，识别不了方向，已切换画面</string>
+    <string name="player_rotate_failed">系统没响应转向请求（旋转被系统拦截）</string>
+    <string name="player_rotate_render_fallback">系统拦截转屏，已直接旋转画面显示；长按按钮恢复自动跟随</string>
+    <string name="player_zoom">缩放 %1$d%%</string>
+    <!-- M7：软解角标 + 视频信息面板 -->
+    <string name="player_sw_badge">软解</string>
+    <string name="player_info">视频信息</string>
+    <string name="player_info_title">视频信息</string>
+    <string name="player_info_copy">复制</string>
+    <string name="player_info_copied">已复制视频信息</string>
+    <string name="player_info_not_ready">播放器还没准备好，稍后再试</string>
+    <string name="player_dec_hw">硬解</string>
+    <string name="player_dec_sw">软解</string>
+    <!-- M7.13：字幕选择 -->
+    <string name="player_subtitle">字幕</string>
+    <string name="player_subtitle_title">选择字幕</string>
+    <string name="player_subtitle_off">关闭字幕</string>
+    <string name="player_subtitle_now">字幕：%1$s</string>
+    <string name="player_subtitle_none">本片没有内置字幕轨</string>
+    <string name="player_subtitle_track">字幕轨</string>
+    <!-- M7.14：外接显示器播放 -->
+    <string name="player_ext_hint">画面正在外接显示器播放\n手机屏仅显示控制</string>
+    <string name="player_ext_attached">画面已切换到外接显示器播放</string>
+</resources>

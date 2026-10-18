@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 手机横屏：窄导航双栏 -->
+<resources>
+    <bool name="two_pane">true</bool>
+    <bool name="compact_rows">true</bool>
+</resources>

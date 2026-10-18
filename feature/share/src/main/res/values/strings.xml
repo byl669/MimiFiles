@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- ══════════ 面板骨架 ══════════ -->
+    <string name="share_title">无线分享</string>
+    <string name="share_tab_http">HTTP</string>
+    <string name="share_tab_ftp">FTP</string>
+    <string name="share_start">启动分享</string>
+
+    <!-- ══════════ 快捷设置磁贴（M6 · P1-9）══════════ -->
+    <string name="share_tile_label">无线分享</string>
+    <string name="share_tile_idle">点按选择要分享的文件夹</string>
+    <string name="share_tile_starting">启动中…</string>
+    <string name="share_tile_error">启动失败，点按重试</string>
+    <string name="share_stop">停止分享</string>
+    <string name="share_starting">正在启动…</string>
+    <string name="share_retry">重试</string>
+
+    <!-- ══════════ 状态 ══════════ -->
+    <string name="share_state_stopped">未启动</string>
+    <string name="share_state_starting">正在启动</string>
+    <string name="share_state_running">运行中</string>
+    <string name="share_state_error">启动失败</string>
+    <string name="share_state_running_since">已运行 %1$s</string>
+    <string name="share_ttl_notice">面板关闭 %1$d 分钟后自动停止</string>
+    <string name="share_ttl_remaining">%1$d 分钟后自动停止</string>
+
+    <!-- ══════════ Server Info 卡片 ══════════ -->
+    <string name="share_info_title">分享信息</string>
+    <string name="share_info_path">共享路径</string>
+    <string name="share_info_edit">编辑</string>
+    <string name="share_info_readonly">只读分享</string>
+    <string name="share_info_writable">可读写</string>
+    <string name="share_info_account">账号密码</string>
+    <string name="share_info_anonymous">匿名（不需要密码）</string>
+    <string name="share_info_copy">复制</string>
+    <string name="share_info_filtered">仅分享选中的 %1$d 项</string>
+
+    <!-- ══════════ 地址卡 ══════════ -->
+    <string name="share_address_title">在电脑上访问</string>
+    <string name="share_address_empty">未获取到局域网地址。请确认手机已连接 WiFi 或已开启热点。</string>
+    <string name="share_address_copy">复制地址</string>
+    <string name="share_address_copy_ok">地址已复制</string>
+    <string name="share_address_copy_cred_ok">带账号的地址已复制（粘贴到资源管理器或浏览器即可）</string>
+    <string name="share_address_qr_hint">用手机/电脑扫码直接打开网页</string>
+    <string name="share_address_open">在电脑浏览器打开这个地址</string>
+    <string name="share_address_open_ftp">在电脑资源管理器输入这个地址</string>
+
+    <!-- ══════════ 开关卡 ══════════ -->
+    <string name="share_switch_title">选项</string>
+    <string name="share_switch_readonly">只读分享</string>
+    <string name="share_switch_readonly_hint">打开后电脑只能查看与下载，不能修改手机上的文件</string>
+    <string name="share_switch_anonymous">允许匿名访问</string>
+    <string name="share_switch_anonymous_hint">打开后同一局域网内的任何设备都能直接访问，无需密码</string>
+    <string name="share_switch_anonymous_warning">⚠️ 匿名访问意味着同网段的任何人都能读写这些文件</string>
+    <string name="share_switch_keep_screen_on">保持屏幕常亮</string>
+    <string name="share_switch_keep_screen_on_hint">分享期间不自动息屏（更耗电）</string>
+    <string name="share_switch_random_password">换一个密码</string>
+
+    <!-- ══════════ 错误与排障（方案 §10.4「错误提示一致」的四类）══════════ -->
+    <string name="share_error_ports_exhausted">端口 %1$d 起连续 %2$d 个都被占用。请在设置里换一个端口，或关掉占用它的应用。</string>
+    <string name="share_error_bind_failed">无法在端口 %1$d 上开始监听（%2$s）。换一个端口再试。</string>
+    <string name="share_error_no_lan">手机不在局域网里。请先连接 WiFi，或打开手机热点让电脑连进来。</string>
+    <string name="share_error_unavailable_feature">当前系统不支持：%1$s</string>
+    <string name="share_error_root_unavailable">共享路径不可用：%1$s</string>
+    <string name="share_error_io">启动失败：%1$s</string>
+
+    <string name="share_tip_title">连不上？</string>
+    <string name="share_tip_ap_isolation">若电脑与手机连着同一个 WiFi 却连不上，多半是路由器开了「AP 隔离 / 客户端隔离」。请换用手机热点，或在路由器设置里关掉它。</string>
+    <string name="share_tip_firewall">Windows 资源管理器若提示无法访问，请在「网络和共享中心」里关闭「公用文件夹共享」的限制，或改用浏览器打开 HTTP 分享。</string>
+    <string name="share_tip_notification">未授予通知权限：分享服务仍在运行，但通知栏不会显示状态与停止按钮。</string>
+    <string name="share_tip_notice_grant">去授权</string>
+
+    <!-- ══════════ 通知（前台服务）══════════ -->
+    <string name="share_notification_channel">无线分享</string>
+    <string name="share_notification_channel_desc">显示分享服务的运行状态与停止入口</string>
+    <string name="share_notification_title">%1$s 分享中</string>
+    <string name="share_notification_text">%1$s</string>
+    <string name="share_notification_action_stop">停止</string>
+    <string name="share_notification_action_open">打开面板</string>
+
+    <!-- ══════════ 对话框 ══════════ -->
+    <string name="share_dialog_ok">确定</string>
+    <string name="share_dialog_cancel">取消</string>
+    <string name="share_dialog_path_title">共享路径</string>
+    <string name="share_dialog_path_hint">例如 /sdcard/Movies 或 local:///sdcard/Movies</string>
+    <string name="share_dialog_path_help">直接填手机里的路径即可（会自动补全）。也支持 smb:// 与 webdav:// 的连接路径。</string>
+    <string name="share_dialog_path_invalid">路径格式不正确</string>
+    <string name="share_dialog_path_missing">这个位置不存在，或者不是文件夹</string>
+
+    <string name="share_msg_started">分享已启动</string>
+    <string name="share_msg_stopped">分享已停止</string>
+    <string name="share_msg_restart_needed">网络已变化，请重新启动分享</string>
+    <string name="share_msg_password_copied">密码已复制</string>
+    <string name="share_info_port">端口 %1$d</string>
+
+    <!-- ══════════ 入口文案（浏览页复用）══════════ -->
+    <string name="share_entry_nav">无线分享</string>
+    <string name="share_unavailable">无线分享功能不可用</string>
+</resources>

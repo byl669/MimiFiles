@@ -1,0 +1,172 @@
+[versions]
+# ── 构建工具（与本机缓存对齐，避免重复下载）─────────────
+agp = "8.13.2"
+kotlin = "2.1.0"
+ksp = "2.1.0-1.0.29"
+
+# ── AndroidX 基础 ──────────────────────────────────────
+coreKtx = "1.15.0"
+appcompat = "1.7.1"
+material = "1.14.0"
+constraintlayout = "2.2.1"
+recyclerview = "1.4.0"
+swiperefresh = "1.1.0"
+viewpager2 = "1.1.0"
+activity = "1.9.0"
+fragment = "1.8.9"
+lifecycle = "2.8.7"
+startup = "1.2.0"
+profileinstaller = "1.4.1"
+documentfile = "1.1.0"
+annotation = "1.9.1"
+webkit = "1.14.0"
+
+# ── 数据 / 异步 ────────────────────────────────────────
+room = "2.8.4"
+datastore = "1.1.7"
+coroutines = "1.8.1"
+securityCrypto = "1.1.0-alpha06"
+
+# ── 测试 ───────────────────────────────────────────────
+# 只在 test 源集用：本地 JVM 单测里 android.jar 的 `org.json` 是空壳（一调就抛
+# "not mocked"），要验清单解析必须带一份真实现。Android 的 `org.json` 正源于此包，
+# API 一致，所以测试里通过的行为就是真机上的行为。**不进 APK**。
+json = "20240303"
+
+# ── 业务依赖（按里程碑逐步启用，M0 仅登记不引入）────────
+# M2 · SMB
+smbj = "0.15.0"
+jcifsNg = "2.1.10"
+# M2 · WebDAV 客户端（与参考应用同款；JitPack 受限仓库放行）
+sardineAndroid = "0.9"
+# M3 · 预览与播放
+media3 = "1.11.0"
+# M7.5 · FFmpeg 音频软解扩展（杜比/DTS 系编码安卓不自带解码器）。
+# 版本格式 = <media3版本>-<nextlib版本>，必须与 media3 精确对齐（混用有 ABI 崩溃风险）。
+# 含 AC3/EAC3/DTS(dca)/TrueHD(mlp) 等音频软解；GPL-3.0（私有分发无碍）。
+nextlib = "1.11.0-0.15.0"
+# 只加这一个：EXIF 读取（旋转 / 时间 / GPS / 尺寸）。
+# androidx.core 里没有 ExifInterface（它住在 androidx.exifinterface 里），
+# 而"按 EXIF 纠正方向"是图片预览的硬需求，不是可选装饰。
+exifinterface = "1.4.2"
+#
+# ⚠️ 目录里**刻意不登记** Coil 与 subsampling-scale-image-view（方案 §6.2 曾计划引入）。
+# 理由：① 与"整体轻量化"这条核心需求冲突（Coil 2.7 约 1.2 MB DEX+native）；
+# ② 图片预览真正需要的能力（两级采样、分块解码、手势缩放、独立磁盘 LRU）
+#    平台 API 全都有（`BitmapFactory` / `BitmapRegionDecoder` / `Matrix`），
+#    自己写反而更好控制"什么情况下才去下载大图的第 N 块"；
+#    ③ 少两个第三方依赖就少两处供给链面。
+# 解码与缓存被封装在 `PreviewImageLoader` / `ThumbnailStore` 接口之后，
+# 将来若确实需要换 Coil，改动范围限于这两个实现类。
+# P1 · 压缩包
+# 压缩包：commons-compress 覆盖 zip/tar/gz/bz2/xz/7z（纯 Java，无原生库）
+commonsCompress = "1.27.1"
+commonsIo = "2.16.1"
+# RAR 是**只读**需求，commons-compress 从 1.16 起移除了 RAR 支持，改用 junrar
+junrar = "7.5.5"
+# xz/lzma 需要一个独立解码器（commons-compress 不自带）
+xz = "1.10"
+sevenZipJBinding = "2.0.0"
+# M4 · 无线分享
+nanohttpd = "2.3.1"
+ftpserver = "1.2.1"
+bouncycastle = "1.78.1"
+zxing = "3.5.3"
+# ftpserver 1.2.1 的父 POM 把 slf4j 钉在 1.7.36（不是 2.x）。
+# 刻意跟到 1.7.36 而不是抬到 2.x：1.7 的绑定发现机制是
+# `org.slf4j.impl.StaticLoggerBinder` 静态字段，在 Android 上稳定可靠；
+# 2.x 改走 `ServiceLoader`，在"R8 全程序优化 + 资源裁剪"下容易把绑定文件一起裁掉，
+# 表现是"日志静音了，但也说不出为什么"。这里只需要它别刷警告，不需要别的。
+slf4j = "1.7.36"
+
+# ── 测试 ───────────────────────────────────────────────
+junit = "4.13.2"
+androidxJunit = "1.2.1"
+androidxTestRunner = "1.6.2"
+espresso = "3.6.1"
+# ── Baseline Profile 采集（M6 必做，见方案 §8.1.1）──────────
+# 版本与 `profileinstaller` 同号（1.4.1）不是巧合：两者出自同一个 androidx 版本线，
+# 采集插件产出的规则格式与运行期 `ProfileInstallReceiver` 的读取端要能对上。
+# 这一个是**只在 `:baselineprofile` 模块用**的构建期插件与测试依赖，
+# 不随 APK 下发（真正下发的是它产出的 `baseline-prof.txt`，经 AGP 编成
+# `assets/dexopt/baseline.prof`）。所以它不占运行时体积。
+baselineProfile = "1.4.1"
+testUiautomator = "2.4.0"
+
+[libraries]
+# AndroidX 基础
+androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
+androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
+androidx-annotation = { module = "androidx.annotation:annotation", version.ref = "annotation" }
+google-material = { module = "com.google.android.material:material", version.ref = "material" }
+androidx-constraintlayout = { module = "androidx.constraintlayout:constraintlayout", version.ref = "constraintlayout" }
+androidx-recyclerview = { module = "androidx.recyclerview:recyclerview", version.ref = "recyclerview" }
+androidx-swiperefreshlayout = { module = "androidx.swiperefreshlayout:swiperefreshlayout", version.ref = "swiperefresh" }
+androidx-viewpager2 = { module = "androidx.viewpager2:viewpager2", version.ref = "viewpager2" }
+androidx-activity-ktx = { module = "androidx.activity:activity-ktx", version.ref = "activity" }
+androidx-fragment-ktx = { module = "androidx.fragment:fragment-ktx", version.ref = "fragment" }
+androidx-lifecycle-runtime-ktx = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "lifecycle" }
+androidx-lifecycle-viewmodel-ktx = { module = "androidx.lifecycle:lifecycle-viewmodel-ktx", version.ref = "lifecycle" }
+androidx-startup-runtime = { module = "androidx.startup:startup-runtime", version.ref = "startup" }
+androidx-profileinstaller = { module = "androidx.profileinstaller:profileinstaller", version.ref = "profileinstaller" }
+androidx-documentfile = { module = "androidx.documentfile:documentfile", version.ref = "documentfile" }
+androidx-webkit = { module = "androidx.webkit:webkit", version.ref = "webkit" }
+androidx-exifinterface = { module = "androidx.exifinterface:exifinterface", version.ref = "exifinterface" }
+
+# 数据 / 异步
+androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
+androidx-room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
+androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
+androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
+androidx-security-crypto = { module = "androidx.security:security-crypto", version.ref = "securityCrypto" }
+kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+
+# 业务（M2+ 启用）
+smbj = { module = "com.hierynomus:smbj", version.ref = "smbj" }
+jcifs-ng = { module = "eu.agno3.jcifs:jcifs-ng", version.ref = "jcifsNg" }
+# WebDAV 客户端：com.github.thegrizzlylabs:sardine-android（经 jitpack.io 受限仓库）
+sardine-android = { module = "com.github.thegrizzlylabs:sardine-android", version.ref = "sardineAndroid" }
+media3-exoplayer = { module = "androidx.media3:media3-exoplayer", version.ref = "media3" }
+media3-ui = { module = "androidx.media3:media3-ui", version.ref = "media3" }
+media3-session = { module = "androidx.media3:media3-session", version.ref = "media3" }
+media3-datasource = { module = "androidx.media3:media3-datasource", version.ref = "media3" }
+media3-datasource-okhttp = { module = "androidx.media3:media3-datasource-okhttp", version.ref = "media3" }
+nextlib-media3ext = { module = "io.github.anilbeesetti:nextlib-media3ext", version.ref = "nextlib" }
+sevenzip-jbinding = { module = "net.sf.sevenzipjbinding:sevenzipjbinding", version.ref = "sevenZipJBinding" }
+sevenzip-jbinding-all = { module = "net.sf.sevenzipjbinding:sevenzipjbinding-all-platforms", version.ref = "sevenZipJBinding" }
+nanohttpd = { module = "org.nanohttpd:nanohttpd", version.ref = "nanohttpd" }
+ftpserver-core = { module = "org.apache.ftpserver:ftpserver-core", version.ref = "ftpserver" }
+bouncycastle = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
+zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
+# 静音绑定：不引它，slf4j-api 会在首次使用时往 stderr 打一句
+# "Failed to load class org.slf4j.impl.StaticLoggerBinder"。功能无损，但会污染排障日志。
+slf4j-nop = { module = "org.slf4j:slf4j-nop", version.ref = "slf4j" }
+
+# 压缩包
+commons-compress = { module = "org.apache.commons:commons-compress", version.ref = "commonsCompress" }
+commons-io = { module = "commons-io:commons-io", version.ref = "commonsIo" }
+junrar = { module = "com.github.junrar:junrar", version.ref = "junrar" }
+xz = { module = "org.tukaani:xz", version.ref = "xz" }
+
+# 测试
+junit = { module = "junit:junit", version.ref = "junit" }
+# 仅 test 源集：org.json 的真实现（android.jar 里的是空壳，单测一调就抛）
+json = { module = "org.json:json", version.ref = "json" }
+androidx-junit = { module = "androidx.test.ext:junit", version.ref = "androidxJunit" }
+# AndroidJUnitRunner 本体住在这里；ext:junit 只传递 monitor/core，不带 runner。
+androidx-test-runner = { module = "androidx.test:runner", version.ref = "androidxTestRunner" }
+androidx-espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref = "espresso" }
+# Baseline Profile 采集（`:baselineprofile` 模块专用）
+androidx-benchmark-macro-junit4 = { module = "androidx.benchmark:benchmark-macro-junit4", version.ref = "baselineProfile" }
+androidx-test-uiautomator = { module = "androidx.test.uiautomator:uiautomator", version.ref = "testUiautomator" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+android-library = { id = "com.android.library", version.ref = "agp" }
+# `:baselineprofile` 是一个 `com.android.test` 模块（它不是一个 APK，
+# 而是一段"跑到目标应用里去操作、并收集它执行了哪些代码"的测试）。
+android-test = { id = "com.android.test", version.ref = "agp" }
+androidx-baselineprofile = { id = "androidx.baselineprofile", version.ref = "baselineProfile" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }

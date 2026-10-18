@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  androidTest 专用清单：声明捏合探针 Activity。
+  只进 test APK，不进发布包（androidTest 源集与主 APK 完全隔离）。
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      库模块没有 targetSdk，test APK 会回落到 minSdk=24 —— 系统随即弹
+      「DeprecatedTargetSdkVersionDialog」并抢走窗口焦点，捏合注入全部失焦失败。
+      在这里把 test APK 的 targetSdk 抬上去，对话框就不再出现。
+    -->
+    <uses-sdk android:targetSdkVersion="36" />
+
+    <application>
+        <activity
+            android:name="com.miyuetech.mimifiles.feature.preview.PinchProbeActivity"
+            android:exported="true"
+            android:label="PinchProbe">
+            <!-- ActivityScenario 固定用 MAIN+LAUNCHER 拉起，缺这个过滤器就 resolve 不到。 -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>

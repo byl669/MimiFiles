@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- ── 应用主题：DayNight + 无 ActionBar（自绘命令栏）───────── -->
+    <style name="Theme.MimiFiles" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorPrimaryVariant">@color/primary_variant</item>
+        <item name="colorOnPrimary">@color/on_primary</item>
+        <item name="android:colorBackground">@color/bg_window</item>
+        <item name="colorSurface">@color/common_card_background_color</item>
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+        <item name="android:windowBackground">@color/bg_window</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="windowActionModeOverlay">true</item>
+    </style>
+
+    <!-- ── 启动主题：背景色随当前昼夜模式，避免闪白 ───────────── -->
+    <style name="Theme.MimiFiles.Splash">
+        <item name="android:windowBackground">@color/bg_window</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="colorPrimary">@color/primary</item>
+        <item name="android:windowDisablePreview">false</item>
+    </style>
+
+    <!-- ── 通用卡片（横屏导航窗格 / 分享面板复用）──────────────── -->
+    <style name="Widget.MimiFiles.Card" parent="Widget.Material3.CardView.Elevated">
+        <item name="cardBackgroundColor">@color/common_card_background_color</item>
+        <item name="cardElevation">0dp</item>
+        <item name="cardCornerRadius">8dp</item>
+    </style>
+
+    <!-- ── 状态点（分享服务运行/停止）───────────────────────────
+         注意：样式名含 "." 时 AAPT 会隐式推导父样式，此处刻意不带点，
+         避免 "Widget.MimiFiles" 不存在导致资源链接失败。 -->
+    <style name="MimiFilesStatusDot">
+        <item name="android:layout_width">8dp</item>
+        <item name="android:layout_height">8dp</item>
+    </style>
+
+    <!-- ── 横屏紧凑列表行（Windows 资源管理器风格 32dp 行高）──── -->
+    <style name="MimiFilesRowCompact" tools:ignore="UnusedResources">
+        <item name="android:layout_height">32dp</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:paddingStart">8dp</item>
+        <item name="android:paddingEnd">8dp</item>
+    </style>
+
+    <!-- ══════════════════════════════════════════════════════════
+         设置项排版（设置页 / 连接编辑页共用）
+
+         命名刻意不带 "."：AAPT 会把 `A.B.C` 推断为继承 `A.B`，
+         一旦 `A.B` 不存在就是资源链接失败。这条在 M0 已经踩过一次。
+         ══════════════════════════════════════════════════════════ -->
+
+    <!-- 分组标题：「外观」「浏览」「关于」 -->
+    <style name="MimiFilesSettingsSection">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginStart">4dp</item>
+        <item name="android:layout_marginTop">@dimen/content_padding_double</item>
+        <item name="android:textColor">@color/primary</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <!-- 卡片内的小标题（「主题」「列表视图」） -->
+    <style name="MimiFilesSettingsLabel">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:textSize">13sp</item>
+    </style>
+
+    <!-- 行主标题 -->
+    <style name="MimiFilesSettingsTitle">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">15sp</item>
+    </style>
+
+    <!-- 行副标题 / 说明文字 -->
+    <style name="MimiFilesSettingsSummary">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">2dp</item>
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:textSize">13sp</item>
+    </style>
+
+    <!-- 单选行。
+         必须显式继承 Material3 的 CompoundButton 样式：直接给 Material 控件写
+         `style=` 会**替换**它的默认样式，按钮的涟漪与着色会一起丢掉。 -->
+    <style name="MimiFilesSettingsRadio" parent="Widget.Material3.CompoundButton.RadioButton">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:minHeight">44dp</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">15sp</item>
+    </style>
+</resources>

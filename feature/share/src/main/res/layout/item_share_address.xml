@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ==========================================================================
+     地址卡里的一行：网卡标签 · 地址 · 两个动作（复制 / 打开）
+
+     ⚠️ 这里刻意把「地址」做成可点的大字，而不是只留两个图标按钮：
+     参考应用把地址做成了可复制的文本，因为用户最常见的动作是**照着念/照着敲**
+     （在 PC 上手动输入 FTP 地址、或把地址发给自己）。做成大字能直接读，
+     比"点复制→切到聊天窗口→粘贴"少好几步。
+     ========================================================================== -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:minHeight="52dp"
+    android:orientation="horizontal"
+    android:paddingTop="4dp"
+    android:paddingBottom="4dp">
+
+    <TextView
+        android:id="@+id/address_iface"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_badge"
+        android:maxWidth="72dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:paddingStart="6dp"
+        android:paddingTop="2dp"
+        android:paddingEnd="6dp"
+        android:paddingBottom="2dp"
+        android:textColor="@color/text_secondary"
+        android:textSize="11sp"
+        tools:text="wlan0" />
+
+    <TextView
+        android:id="@+id/address_text"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/content_padding_half"
+        android:layout_weight="1"
+        android:autoSizeMaxTextSize="17sp"
+        android:autoSizeMinTextSize="12sp"
+        android:autoSizeStepGranularity="1sp"
+        android:autoSizeTextType="uniform"
+        android:fontFamily="monospace"
+        android:maxLines="1"
+        android:textColor="@color/text_primary"
+        android:textIsSelectable="true"
+        tools:text="ftp://192.168.2.5:2121" />
+
+    <ImageButton
+        android:id="@+id/address_copy"
+        android:layout_width="@dimen/select_action_size"
+        android:layout_height="@dimen/select_action_size"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/share_address_copy"
+        android:src="@drawable/ic_content_copy"
+        app:tint="@color/primary" />
+
+    <ImageButton
+        android:id="@+id/address_open"
+        android:layout_width="@dimen/select_action_size"
+        android:layout_height="@dimen/select_action_size"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/share_address_open"
+        android:src="@drawable/ic_link"
+        app:tint="@color/text_secondary" />
+</LinearLayout>

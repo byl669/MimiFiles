@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  「软解」角标的底。
+  半透明橙：在纯黑播放背景上足够醒目，又不与顶栏其它白色控件抢语义
+  （它标记的是"性能态"，不是按钮，所以不用可点击的形状语言）。
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#CCFF8800" />
+    <corners android:radius="8dp" />
+</shape>

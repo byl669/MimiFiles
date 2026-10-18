@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="preview_title_fallback">预览</string>
+    <!-- 计数器：第 3 / 共 12 -->
+    <string name="preview_counter">%1$d / %2$d</string>
+    <string name="preview_action_info">详细信息</string>
+    <string name="preview_action_open_with">用其他应用打开</string>
+    <string name="preview_action_play">播放</string>
+    <string name="preview_action_reset_zoom">复位缩放</string>
+
+    <string name="preview_loading">正在读取…</string>
+    <string name="preview_failed_title">打不开这个文件</string>
+    <string name="preview_failed_hint">文件可能已被删除、没有读取权限，或所在的网络位置暂时不可达。</string>
+    <string name="preview_unsupported_title">不支持预览此类型</string>
+    <string name="preview_unsupported_hint">本应用没有内置这类文件的查看器，可以交给其他应用打开。</string>
+    <string name="preview_no_external_app">设备上没有能打开此类型的应用</string>
+    <string name="preview_external_failed">无法交给其它应用打开：%1$s</string>
+    <string name="preview_invalid_args">没有可显示的图片或文件</string>
+
+    <!--
+      安装包外发前的落地等待。
+      必须说出来：这一步在慢速网络上有实打实的十几秒到几十秒，只转圈用户会以为死机；
+      而且它跟"打开预览"是两件事，用户有权知道自己在等什么。
+    -->
+    <string name="preview_staging_installer">正在把安装包下载到本机…</string>
+    <string name="preview_staging_failed">安装包下载失败</string>
+    <string name="preview_staging_failed_hint">没能从网络位置取到这个安装包，可能是连接中断或空间不足。可以重试，或先把它下载到本机再安装。</string>
+
+    <!-- 类型校正提示：魔数与扩展名不一致时说一句，比默默打开更可信 -->
+    <string name="preview_magic_corrected">扩展名与实际内容不符，已按 %1$s 打开</string>
+
+    <!-- 图片 -->
+    <string name="preview_image_motion">动态照片</string>
+    <string name="preview_image_motion_hint">长按可播放动态片段（%1$s）</string>
+    <string name="preview_video_poster_hint">点按播放视频</string>
+
+    <!-- EXIF 详情 -->
+    <string name="preview_info_title">文件信息</string>
+    <string name="preview_info_close">关闭</string>
+    <string name="preview_info_size">尺寸</string>
+    <string name="preview_info_bytes">大小</string>
+    <string name="preview_info_taken">拍摄时间</string>
+    <string name="preview_info_camera">相机</string>
+    <string name="preview_info_params">参数</string>
+    <string name="preview_info_location">位置</string>
+    <string name="preview_info_path">位置路径</string>
+    <string name="preview_info_encoding">文本编码</string>
+    <string name="preview_info_pages">总页数</string>
+    <string name="preview_info_unknown">—</string>
+    <string name="preview_info_entries">条目数</string>
+    <string name="preview_info_unpacked">解压后大小</string>
+
+    <!-- 文本 -->
+    <string name="preview_text_encoding">编码 %1$s</string>
+    <string name="preview_text_truncated">文件较大，已加载前 %1$s（继续滚动可加载更多）</string>
+    <string name="preview_text_all_loaded">已加载全部（共 %1$s）</string>
+    <string name="preview_text_load_more">加载更多</string>
+
+    <!-- PDF -->
+    <string name="preview_pdf_page">第 %1$d / %2$d 页</string>
+    <string name="preview_pdf_page_placeholder">PDF 页面</string>
+    <string name="preview_pdf_encrypted">这个 PDF 有密码保护，暂时无法预览</string>
+    <string name="preview_pdf_failed">PDF 解析失败</string>
+
+    <!-- 音频 -->
+    <string name="preview_audio_play">播放</string>
+    <string name="preview_audio_pause">暂停</string>
+    <string name="preview_audio_prepare">正在准备播放…</string>
+    <string name="preview_audio_failed">无法播放此音频：%1$s</string>
+
+    <!-- 压缩包 -->
+    <string name="preview_archive_reading">正在读取压缩包目录…</string>
+    <string name="preview_archive_summary">%1$s · %2$d 个条目 · 解压后 %3$s</string>
+    <string name="preview_archive_summary_flat">%1$s · 单文件压缩流 · 解压为 %2$s</string>
+    <string name="preview_archive_unsupported">暂不支持预览这种压缩格式（%1$s）</string>
+    <string name="preview_archive_unsupported_hint">可以交给其它应用打开。</string>
+    <string name="preview_archive_too_large">压缩包太大，无法在应用内解压</string>
+    <string name="preview_archive_too_large_hint">远端文件需要先下载到本机才能列举与解压。可以先下载，或用其它应用打开。</string>
+    <string name="preview_archive_failed">打不开这个压缩包</string>
+    <string name="preview_archive_extract">解压到此处</string>
+    <string name="preview_archive_extract_here">解压</string>
+    <string name="preview_archive_cancel">取消解压</string>
+    <string name="preview_archive_working">正在解压 %1$d / %2$d · %3$s</string>
+    <string name="preview_archive_done">已解压 %1$d 个文件到 %2$s</string>
+    <string name="preview_archive_done_skipped">已解压 %1$d 个文件到 %2$s（跳过 %3$d 个不安全路径）</string>
+    <string name="preview_archive_cancelled">已取消解压</string>
+    <string name="preview_archive_entry_action">解压这一项</string>
+    <string name="preview_archive_entry_action_dir">解压这一项及其内容</string>
+    <string name="preview_archive_entry_too_large">这一项太大，已跳过</string>
+    <string name="preview_archive_truncated">条目过多，只显示前 %1$d 项</string>
+    <string name="preview_archive_dir_hint">目录</string>
+    <string name="preview_archive_unsafe_path">路径不安全，解压时会跳过</string>
+    <string name="preview_archive_encrypted_needed">这个压缩包需要密码，暂不支持在应用内解压</string>
+</resources>

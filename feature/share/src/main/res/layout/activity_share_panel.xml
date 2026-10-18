@@ -1,0 +1,400 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ==========================================================================
+     无线分享面板 —— FTP 与 HTTP **共用一份布局**（方案 §10.4「面板一致」）
+
+     结构（自上而下）：
+       ① 工具栏
+       ② Tab（HTTP / FTP）—— 参考应用的双 Tab 形态
+       ③ 状态卡：色点 + 状态文字 + 端口/有效期
+       ④ 分享信息卡：路径（可编辑）· 只读标记 · 账号密码 · 已选过滤
+       ⑤ <include view_share_address_card>：地址卡（含二维码，仅 HTTP）
+       ⑥ 选项卡：只读 / 匿名 / 常亮
+       ⑦ 排障提示卡：AP 隔离 / 通知权限 等（无问题时整卡隐藏）
+       ⑧ 底部主按钮：启动 / 停止
+
+     为什么底部按钮**不放进 ScrollView**：它是这一页唯一的主动作，
+     内容变长（地址多、提示多）时它必须始终可点。放进滚动区就会在提示卡
+     出现时被推到屏幕外 —— 而那恰好是用户最需要点一次「重试」的时候。
+     ========================================================================== -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background_in_card_page"
+    android:orientation="vertical">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/bg_window"
+        app:navigationContentDescription="@string/action_back"
+        app:navigationIcon="@drawable/ic_arrow_back"
+        app:navigationIconTint="@color/text_primary"
+        app:title="@string/share_title"
+        app:titleTextColor="@color/text_primary" />
+
+    <!-- ══════════ ① 协议 Tab ══════════ -->
+    <com.google.android.material.button.MaterialButtonToggleGroup
+        android:id="@+id/tabs"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/bg_window"
+        android:paddingStart="@dimen/content_padding"
+        android:paddingEnd="@dimen/content_padding"
+        android:paddingBottom="@dimen/content_padding_half"
+        app:selectionRequired="true"
+        app:singleSelection="true">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/tab_http"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/share_tab_http" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/tab_ftp"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/share_tab_ftp" />
+    </com.google.android.material.button.MaterialButtonToggleGroup>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="@dimen/content_padding"
+            android:paddingTop="@dimen/content_padding_half"
+            android:paddingEnd="@dimen/content_padding"
+            android:paddingBottom="@dimen/content_padding">
+
+            <!-- ══════════ ② 状态卡 ══════════ -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_card_surface"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="@dimen/content_padding"
+                android:paddingTop="@dimen/content_padding_1_5x"
+                android:paddingEnd="@dimen/content_padding"
+                android:paddingBottom="@dimen/content_padding_1_5x">
+
+                <View
+                    android:id="@+id/status_dot"
+                    android:layout_width="10dp"
+                    android:layout_height="10dp"
+                    android:background="@drawable/bg_status_dot" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/content_padding_1_5x"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/status_text"
+                        style="@style/MimiFilesSettingsTitle"
+                        android:text="@string/share_state_stopped"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/status_detail"
+                        style="@style/MimiFilesSettingsSummary"
+                        tools:text="已运行 00:12 · 2121 端口" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- ══════════ ③ 分享信息卡 ══════════ -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/content_padding_1_5x"
+                android:background="@drawable/bg_card_surface"
+                android:orientation="vertical"
+                android:paddingStart="@dimen/content_padding"
+                android:paddingTop="@dimen/content_padding_1_5x"
+                android:paddingEnd="@dimen/content_padding"
+                android:paddingBottom="@dimen/content_padding_1_5x">
+
+                <TextView
+                    style="@style/MimiFilesSettingsLabel"
+                    android:text="@string/share_info_title" />
+
+                <!-- 共享路径：值 + 编辑 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/content_padding_half"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        style="@style/MimiFilesSettingsTitle"
+                        android:layout_width="wrap_content"
+                        android:text="@string/share_info_path" />
+
+                    <TextView
+                        android:id="@+id/info_path"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/content_padding_half"
+                        android:layout_weight="1"
+                        android:ellipsize="middle"
+                        android:fontFamily="monospace"
+                        android:maxLines="1"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="13sp"
+                        tools:text="local:///storage/emulated/0/DCIM" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/info_path_edit"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:minHeight="36dp"
+                        android:text="@string/share_info_edit"
+                        android:textSize="13sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/info_filter"
+                    style="@style/MimiFilesSettingsSummary"
+                    android:visibility="gone"
+                    tools:text="仅分享选中的 3 项"
+                    tools:visibility="visible" />
+
+                <!-- 账号密码：值 + 复制。匿名时整行隐藏，换成一句风险提示 -->
+                <LinearLayout
+                    android:id="@+id/info_cred_row"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/content_padding_1_5x"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        style="@style/MimiFilesSettingsTitle"
+                        android:layout_width="wrap_content"
+                        android:text="@string/share_info_account" />
+
+                    <TextView
+                        android:id="@+id/info_cred"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/content_padding_half"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_code"
+                        android:fontFamily="monospace"
+                        android:paddingStart="8dp"
+                        android:paddingTop="4dp"
+                        android:paddingEnd="8dp"
+                        android:paddingBottom="4dp"
+                        android:textColor="@color/text_primary"
+                        android:textIsSelectable="true"
+                        android:textSize="14sp"
+                        tools:text="mimi / k7fq2x9p" />
+
+                    <ImageButton
+                        android:id="@+id/info_cred_copy"
+                        android:layout_width="@dimen/select_action_size"
+                        android:layout_height="@dimen/select_action_size"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="@string/share_info_copy"
+                        android:src="@drawable/ic_content_copy"
+                        app:tint="@color/primary" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/info_anonymous_warning"
+                    style="@style/MimiFilesSettingsSummary"
+                    android:text="@string/share_switch_anonymous_warning"
+                    android:textColor="@color/button_text_color_red"
+                    android:visibility="gone"
+                    tools:visibility="visible" />
+
+                <!-- 权限 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/content_padding_half"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        style="@style/MimiFilesSettingsTitle"
+                        android:layout_width="wrap_content"
+                        android:text="@string/share_switch_readonly" />
+
+                    <TextView
+                        android:id="@+id/info_access"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/content_padding_half"
+                        android:layout_weight="1"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="13sp"
+                        tools:text="可读写" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- ══════════ ④ 地址卡（FTP/HTTP 共用）══════════
+                 用自研的 AddressCardView 而不是 <include>：卡片内部是"一行一个地址"
+                 的动态列表，必须在运行期按网卡数量增删子 View。做成自定义 View 之后，
+                 它的布局细节（含二维码的显隐）全部封在自己内部，面板这一侧只有一个
+                 bind(addresses, …) 调用——这正是方案 §10.4「地址展示一致」要的效果。 -->
+            <com.miyuetech.mimifiles.feature.share.AddressCardView
+                android:id="@+id/address_card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/content_padding_1_5x" />
+
+            <!-- ══════════ ⑤ 选项卡 ══════════ -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/content_padding_1_5x"
+                android:background="@drawable/bg_card_surface"
+                android:orientation="vertical"
+                android:paddingStart="@dimen/content_padding"
+                android:paddingTop="@dimen/content_padding_1_5x"
+                android:paddingEnd="@dimen/content_padding"
+                android:paddingBottom="@dimen/content_padding_1_5x">
+
+                <TextView
+                    style="@style/MimiFilesSettingsLabel"
+                    android:text="@string/share_switch_title" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/switch_readonly"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/content_padding_half"
+                    android:minHeight="44dp"
+                    android:text="@string/share_switch_readonly"
+                    android:textColor="@color/text_primary"
+                    android:textSize="15sp" />
+
+                <TextView
+                    style="@style/MimiFilesSettingsSummary"
+                    android:text="@string/share_switch_readonly_hint" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/switch_anonymous"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/content_padding_1_5x"
+                    android:minHeight="44dp"
+                    android:text="@string/share_switch_anonymous"
+                    android:textColor="@color/text_primary"
+                    android:textSize="15sp" />
+
+                <TextView
+                    style="@style/MimiFilesSettingsSummary"
+                    android:text="@string/share_switch_anonymous_hint" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/switch_keep_screen_on"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/content_padding_1_5x"
+                    android:minHeight="44dp"
+                    android:text="@string/share_switch_keep_screen_on"
+                    android:textColor="@color/text_primary"
+                    android:textSize="15sp" />
+
+                <TextView
+                    style="@style/MimiFilesSettingsSummary"
+                    android:text="@string/share_switch_keep_screen_on_hint" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/action_new_password"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/content_padding_half"
+                    android:minHeight="36dp"
+                    android:text="@string/share_switch_random_password"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <!-- ══════════ ⑥ 排障提示 ══════════ -->
+            <LinearLayout
+                android:id="@+id/tips_card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/content_padding_1_5x"
+                android:background="@drawable/bg_tip_card"
+                android:orientation="vertical"
+                android:paddingStart="@dimen/content_padding"
+                android:paddingTop="@dimen/content_padding_1_5x"
+                android:paddingEnd="@dimen/content_padding"
+                android:paddingBottom="@dimen/content_padding_1_5x"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/share_tip_title"
+                    android:textColor="@color/permission_bar_text"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tip_text"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:lineSpacingExtra="3dp"
+                    android:textColor="@color/permission_bar_text"
+                    android:textSize="13sp"
+                    tools:text="若电脑与手机连着同一个 WiFi 却连不上，多半是路由器开了 AP 隔离。" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/tip_action"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minHeight="36dp"
+                    android:text="@string/share_tip_notice_grant"
+                    android:textSize="13sp"
+                    android:visibility="gone"
+                    tools:visibility="visible" />
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- ══════════ ⑦ 底部主按钮 ══════════ -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/bg_window"
+        android:paddingStart="@dimen/content_padding"
+        android:paddingTop="@dimen/content_padding_half"
+        android:paddingEnd="@dimen/content_padding"
+        android:paddingBottom="@dimen/content_padding">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/action_primary"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:text="@string/share_start"
+            android:textSize="16sp"
+            app:icon="@drawable/ic_play_arrow"
+            app:iconTint="@color/on_primary" />
+    </FrameLayout>
+</LinearLayout>

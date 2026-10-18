@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 「动态照片」徽标：环形（挖空）+ 内部三角 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M24,2a22,22 0 1,0 0.01,0zM24,7a17,17 0 1,1 -0.01,0zM20,15l14,9l-14,9z" />
+</vector>

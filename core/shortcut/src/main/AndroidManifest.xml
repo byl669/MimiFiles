@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      ── 桌面快捷方式 ─────────────────────────────────────────────
+      · API 26+ 走官方 requestPinShortcut，不需要任何权限。
+      · API 24 / 25 走 legacy「com.android.launcher.action.INSTALL_SHORTCUT」广播，
+        需要 launcher 的 INSTALL_SHORTCUT 权限，故 maxSdkVersion 限定为 25
+        （与参考应用 defpackage.g47.d 的双路策略一致）。
+    -->
+    <uses-permission
+        android:name="com.android.launcher.permission.INSTALL_SHORTCUT"
+        android:maxSdkVersion="25" />
+
+    <application>
+        <!-- pin 结果回执：组件显式 + 不导出，仅由本应用 PendingIntent 唤起 -->
+        <receiver
+            android:name=".ShortcutPinResultReceiver"
+            android:exported="false" />
+    </application>
+</manifest>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 画廊：ViewPager2 承载一页一张。用 ViewPager2 而不是自己写 RecyclerView+hint，
+     是因为它的"整页吸附 + 与子 View 手势的冲突处理"已经调好，
+     而这两件事恰好是与 ZoomableImageView 共存时最容易出错的部分。 -->
+<androidx.viewpager2.widget.ViewPager2 xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/gallery_pager"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent" />

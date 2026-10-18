@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  桌面快捷方式图标：文件夹图形。
+  108x108 画布，内容收在中心 66dp 安全区内，适配各家桌面的圆形/方形 / 圆角矩形裁剪。
+  （矢量而非位图：pin 与 legacy 两条路都能用同一份资源，桌面按需自行光栅化。）
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- 文件夹主体 -->
+    <path
+        android:fillColor="#FF1F9D55"
+        android:pathData="M26,42 L48,42 L54,49 L82,49 A4,4 0 0 1 86,53 L86,80 A4,4 0 0 1 82,84 L26,84 A4,4 0 0 1 22,80 L22,46 A4,4 0 0 1 26,42 Z" />
+
+    <!-- 前盖（浅一档，制造层次） -->
+    <path
+        android:fillColor="#FF2EB86A"
+        android:pathData="M26,52 L82,52 A4,4 0 0 1 86,56 L86,80 A4,4 0 0 1 82,84 L26,84 A4,4 0 0 1 22,80 L22,56 A4,4 0 0 1 26,52 Z" />
+
+    <!-- 前盖标签条 -->
+    <path
+        android:fillColor="#66FFFFFF"
+        android:pathData="M30,60 L62,60 A2,2 0 0 1 62,64 L30,64 A2,2 0 0 1 30,60 Z" />
+</vector>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 播放：实心圆 + 挖空的三角。evenOdd 让三角成为"洞"，所以在任意底色上都清晰 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="64dp"
+    android:height="64dp"
+    android:viewportWidth="64"
+    android:viewportHeight="64">
+    <path
+        android:fillColor="#E6FFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M32,4a28,28 0 1,0 0.01,0zM25,19l20,13l-20,13z" />
+    <path
+        android:fillColor="#CC000000"
+        android:pathData="M25,19l20,13l-20,13z" />
+</vector>

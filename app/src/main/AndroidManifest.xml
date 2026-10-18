@@ -1,0 +1,281 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- ── 网络（SMB 局域网访问、无线分享服务端）──────────────── -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <!-- 局域网设备发现（NSD/mDNS），M5 无线直传使用 -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+
+    <!-- ── 存储：Android 12 及以下走传统权限 ──────────────────── -->
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="29" />
+    <!-- Android 13+ 细分媒体权限 -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <!-- Android 11+ 全盘文件访问（体验优先；被拒则降级纯 SAF） -->
+    <uses-permission
+        android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" />
+
+    <!-- ── 无线分享前台服务 ──────────────────────────────────── -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!--
+      ── 应用内自更新（M5）──────────────────────────────────────
+      Android 8（API 26）起，"安装未知来源应用"是一次性的**逐应用授权**。
+      没有这条声明时 `Intent.ACTION_VIEW` 指向一个 APK 会被系统直接拒绝
+      （有的 ROM 甚至静默无反应），用户只会觉得"点了「立即安装」没反应"。
+      它不授予任何后台能力，只让本应用有资格**请求**用户去开那个开关。
+    -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+    <!--
+      ── 明确不申请的权限（与参考应用刻意拉开差距）──────────────
+      · ACCESS_SUPERUSER / KILL_BACKGROUND_PROCESSES  → 不做 Root
+      · QUERY_ALL_PACKAGES / PACKAGE_USAGE_STATS      → 不做应用分析
+      · ACCESS_FINE_LOCATION / RECORD_AUDIO / CAMERA  → 无相关功能
+      · com.google.android.gms.permission.AD_ID       → 无广告
+    -->
+
+    <!-- 非必需硬件不构成安装门槛（覆盖老盒子/平板） -->
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <uses-feature android:name="android.software.leanback" android:required="false" />
+
+    <application
+        android:name=".FileApp"
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:largeHeap="false"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:requestLegacyExternalStorage="true"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.MimiFiles.Splash"
+        tools:targetApi="36">
+
+        <activity
+            android:name=".splash.SplashActivity"
+            android:exported="true"
+            android:theme="@style/Theme.MimiFiles.Splash">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+          文件浏览主界面：竖屏单栏 / 横屏左树右表（Windows 资源管理器形态）。
+
+          **刻意不声明 android:configChanges**：旋转屏幕要走一次真正的重建。
+          理由是这个页面的形态（导航窗格 260dp ↔ 220dp ↔ 280dp、紧凑行高、
+          状态栏显隐）全靠资源限定符解析，而 `@dimen/nav_pane_width` 是在
+          布局**填充时**定下来的——声明了 `orientation|screenSize` 之后不会重新
+          填充布局，旋转后窗格会保持竖屏的 260dp。当前目录、选中项、列表内容
+          都存在 ViewModel 里，重建不会丢；代价只有滚动位置，可接受。
+        -->
+        <activity
+            android:name="com.miyuetech.mimifiles.feature.browser.DocumentsActivity"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:theme="@style/Theme.MimiFiles" />
+
+        <!-- 设置：外观（主题三态 / 列表视图）· 浏览 · 关于 -->
+        <activity
+            android:name="com.miyuetech.mimifiles.feature.settings.SettingsActivity"
+            android:exported="false"
+            android:label="@string/settings_title"
+            android:theme="@style/Theme.MimiFiles" />
+
+        <!-- 网络连接管理（SMB / WebDAV）：列表 -->
+        <activity
+            android:name="com.miyuetech.mimifiles.feature.connection.ConnectionsActivity"
+            android:exported="false"
+            android:label="@string/connections_title"
+            android:theme="@style/Theme.MimiFiles" />
+
+        <!--
+          连接新建 / 编辑页：**刻意声明 android:configChanges**。
+
+          与浏览页的理由正好相反：浏览页的形态（导航窗格宽度、紧凑行高、状态栏显隐）
+          全靠资源限定符在布局填充时解析，必须重建才能换形态；本页两种朝向共用同一份
+          布局、没有任何按朝向变化的资源，重建的唯一后果是丢掉用户填了一半的表单。
+          重建能换来的东西一件都没有，所以这里把它挡掉。
+
+          注意**没有**声明 uiMode：切换深色模式必须走重建，否则颜色资源不会重新解析，
+          界面会停在旧配色上。屏幕旋转与主题切换是两回事，不能一起挡。
+        -->
+        <activity
+            android:name="com.miyuetech.mimifiles.feature.connection.ConnectionEditActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
+            android:exported="false"
+            android:theme="@style/Theme.MimiFiles"
+            android:windowSoftInputMode="adjustResize" />
+
+        <!--
+          预览页（图片 / 文本 / PDF / 音频）。
+
+          `android:configChanges` 在这里**必须声明**：预览的"用户状态"就是
+          当前的缩放倍数与平移位置，而它存在 View 里（不在 ViewModel 里）。
+          旋转屏幕时若走重建，用户放大到某个细节的位置就会丢——而这恰恰是
+          他正在看的东西。声明了之后，ZoomableImageView 的 `onSizeChanged`
+          会重算适配矩阵并保留手势状态。
+        -->
+        <activity
+            android:name="com.miyuetech.mimifiles.feature.preview.PreviewActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
+            android:exported="false"
+            android:theme="@style/Theme.MimiFiles" />
+
+        <!--
+          视频播放页。
+
+          `supportsPictureInPicture` 打开画中画能力；`configChanges` 里**没有**
+          `pictureInPicture` 这个合法标志（AAPT 会直接报错），画中画期间系统会以
+          `screenSize|smallestScreenSize|screenLayout|orientation` 的形式发变更，
+          所以上面这几个已经覆盖到了——目标同样是"进出小窗不重建、播放不中断"。
+        -->
+        <activity
+            android:name="com.miyuetech.mimifiles.feature.player.VideoPlayerActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
+            android:exported="false"
+            android:supportsPictureInPicture="true"
+            android:theme="@style/Theme.MimiFiles" />
+
+        <!--
+          无线分享面板（FTP / HTTP）。
+
+          `configChanges` 与预览页同样的理由：这一页承载了"正准备把手机当服务器用"
+          的用户状态（选中的协议、改了一半的路径、要照着抄的密码）。转屏时走重建会
+          把这些丢掉，而这一页恰恰是"手机可能被立起来放着"的场景。
+          服务端本身不受影响——它在 ShareEngine 里，与 Activity 无关。
+        -->
+        <activity
+            android:name="com.miyuetech.mimifiles.feature.share.SharePanelActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:theme="@style/Theme.MimiFiles" />
+
+        <!--
+          分享前台服务。
+
+          `foregroundServiceType="dataSync"` 是必需的：Android 14 起，未声明类型的
+          前台服务会直接抛 `MissingForegroundServiceTypeException`。选 `dataSync`
+          而不是 `connectedDevice`：我们做的是"网络文件传输"，`dataSync` 正是这个语义，
+          而且它的运行时约束（仅需 FOREGROUND_SERVICE_DATA_SYNC 普通权限）与需求吻合——
+          `connectedDevice` 会额外要求设备连接类权限，那是给蓝牙/USB 场景的。
+
+          `stopWithTask="false"` 是我们**刻意**的选择：默认值 `true` 会在用户划掉任务时
+          直接销毁服务并撤掉通知，那样"退出自动停服"这个开关就永远生效、
+          关掉它也没有意义。设成 `false` 之后，是否停止由服务自己在
+          `onTaskRemoved` 里按用户设置决定（见 ShareForegroundService 的注释）。
+        -->
+        <service
+            android:name="com.miyuetech.mimifiles.feature.share.ShareForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync"
+            android:stopWithTask="false" />
+
+        <!--
+          搬运（复制/移动）进度的前台服务。
+
+          `foregroundServiceType="dataSync"` 同样是必需项（Android 14 起未声明类型会抛
+          `MissingForegroundServiceTypeException`），语义也对得上：它就是网络文件传输。
+
+          ⚠️ 这里**不声明** `stopWithTask`：默认值 `true` 表示"用户划掉最近任务时销毁服务"，
+          而搬运恰恰是最需要"划掉之后继续跑"的场景——用户点完粘贴就切走是常态。
+          取默认值会让"进度通知"在用户划掉任务的那一刻消失，且**传输连同进程一起被杀**，
+          结果就是目录里多出半截文件。这与分享服务的取舍正好相反（那边由用户在设置里选）。
+        -->
+        <service
+            android:name="com.miyuetech.mimifiles.feature.browser.TransferForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync"
+            android:stopWithTask="false" />
+
+        <!--
+          快捷设置磁贴（M6 · P1-9）：下拉快捷面板里的「无线分享」开关。
+
+          `BIND_QUICK_SETTINGS_TILE` 是平台要求的权限：只有 SystemUI 能绑定本服务，
+          第三方应用绑不上。`TOGGLEABLE_TILE` 让磁贴呈现"可切换"的样式
+          （点一下状态翻转，而不是每次弹一个面板）。
+
+          ⚠️ 磁贴是系统会**单独拉起**的组件之一：用户从下拉面板点它时，本应用进程
+          可能刚刚被创建、一个 Activity 都还没跑过。所以 `ShareTileService` 里
+          自己 `ShareEngine.install(this)`，而不依赖 `FileApp.onCreate`
+          （那个也会跑，但顺序不保证在磁贴回调之前）。
+        -->
+        <service
+            android:name="com.miyuetech.mimifiles.feature.share.ShareTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_share_wifi"
+            android:label="@string/share_tile_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.TOGGLEABLE_TILE"
+                android:value="true" />
+        </service>
+
+        <!--
+          SAF DocumentsProvider：把 SMB / WebDAV 连接作为"存储卷"暴露给系统，
+          这样在微信、剪辑软件、系统"文件"里都能直接选到 NAS 上的文件。
+
+          `android:permission="android.permission.MANAGE_DOCUMENTS"` 是官方示例的写法：
+          只有持该权限的系统组件（"文件"应用）能直接调用本 provider，
+          第三方应用仍走 SAF 的授权 URI 机制——**不是**把网络存储对全系统敞开。
+
+          `android:exported="true"` 是必需的：调用方是系统，不是本应用。
+        -->
+        <provider
+            android:name="com.miyuetech.mimifiles.provider.MimiDocumentsProvider"
+            android:authorities="com.miyuetech.mimifiles.documents"
+            android:exported="true"
+            android:grantUriPermissions="true"
+            android:permission="android.permission.MANAGE_DOCUMENTS">
+            <intent-filter>
+                <action android:name="android.content.action.DOCUMENTS_PROVIDER" />
+            </intent-filter>
+        </provider>
+
+        <!--
+          应用内自更新（M5）：把下载到 `cacheDir/update/` 的安装包授权给**系统安装器**读。
+
+          为什么不能直接把 `File` 交给 `ACTION_VIEW`：Android 7 起对
+          `file://` URI 一律抛 `FileUriExposedException`（这是为了堵住"通过 file URI
+          把私有文件暴露给任意接收方"）。
+
+          为什么要用 FileProvider 而不是给整个 cacheDir 开个口子：
+          `file_paths.xml` 里只声明了 `update/` 这一个子目录 —— 授权范围恰好是
+          "那个待安装的 APK"，而不是应用缓存里的全部东西。
+
+          authority 用 `${applicationId}.fileprovider`：debug 包会展开成
+          `com.miyuetech.mimifiles.debug.fileprovider`，与运行时
+          `packageName + ".fileprovider"` 拼出来的完全一致（见 `UpdateEngine.requestInstall`）。
+        -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+    </application>
+</manifest>

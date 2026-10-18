@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  外接显示器（副屏）的画面页（M7.14，M7.15 修正竖屏居中）。
+
+  ## 为什么是 Presentation + SurfaceView，而不是再来一个 PlayerView
+  与 VLC 同一条技术路线（其 gui/video/DisplayManager.kt）：
+  副屏内容用 android.app.Presentation 承载 —— 它是挂在指定 Display 上的
+  独立窗口，主屏 Activity 照常收事件；播放器只把**视频输出 Surface** 切到
+  副屏，解码管线、进度、倍速、字幕选择全部还是主屏那一个 ExoPlayer 实例，
+  主屏控制条因此天然继续可用（=「手机屏只显示控制按钮」）。
+
+  ## SurfaceView 而不是 TextureView
+  副屏是整块纯画面（没有旋转/缩放手势需要跟随），SurfaceView 走硬件合成
+  零拷贝，大屏 4K 下比 TextureView 省 GPU/电。M7.11 选 TextureView 的理由
+  （跟随 View 旋转变换）在这里不存在 —— 场景不同，选择相反，不矛盾。
+
+  ## AspectRatioFrameLayout 的作用
+  直接给 ExoPlayer 一个裸 Surface，视频会**拉伸铺满**不管比例；
+  包一层 media3 的 AspectRatioFrameLayout，在 onVideoSizeChanged 时
+  setAspectRatio，即得到和主屏 PlayerView 一致的 letterbox 行为。
+
+  ## 为什么外面包一层 FrameLayout（M7.15 真机反馈）
+  AspectRatioFrameLayout 的 letterbox 是**改自己 measured size** 实现的：
+  竖屏片（9:16）在横屏显示器上，它会把自己缩成一条竖带。M7.14 版它就是
+  布局根节点 —— 缩完锚在左上角，四周露出 Presentation 窗口默认的灰底。
+  包一层黑底 FrameLayout 后：ARLF 缩小 → 由 `layout_gravity="center"`
+  摆回正中 → 两侧是黑边（不是灰底）。屏幕没法单独熄灭某块区域，
+  纯黑就是 OLED/液晶上最接近「不亮」的效果。
+
+  ## SubtitleView（M7.13 的顺延）
+  字幕 cue 跟着 Player 走，不跟 Surface 走 —— 只把视频面切到副屏的话，
+  字幕会留在手机屏上而大屏没有。所以副屏放一个独立 SubtitleView，
+  attach 时 setCues 桥接；放 ARLF **里面**，字幕跟随视频区而不是整屏
+  （竖屏片黑边区不会出字幕）。
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/black">
+
+    <androidx.media3.ui.AspectRatioFrameLayout
+        android:id="@+id/ext_aspect"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_gravity="center"
+        android:background="@android:color/black">
+
+        <SurfaceView
+            android:id="@+id/ext_surface"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <androidx.media3.ui.SubtitleView
+            android:id="@+id/ext_subtitle"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+    </androidx.media3.ui.AspectRatioFrameLayout>
+</FrameLayout>

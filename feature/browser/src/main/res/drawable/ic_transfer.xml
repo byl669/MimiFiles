@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  搬运进度通知的小图标。
+
+  刻意做成**单色 + 极简**：通知栏里的小图标在 Android 5 之后会被系统强制
+  涂成单色轮廓（alpha 之外的颜色全部被丢弃），任何多色设计在那里都会变成
+  一坨剪影。所以直接用 24dp 的纯路径，不依赖任何主题色。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="#FFFFFF">
+
+    <!-- 向下的箭头（"传输中"） -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M12,3 L12,13 M12,13 L8,9 M12,13 L16,9"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+    <!-- 承接的托盘（"落盘"） -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M4,16 L4,19 L20,19 L20,16"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>

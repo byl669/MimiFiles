@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  `com.android.test` 模块的清单。
+
+  它只有 `<manifest>` 一个空壳的必要性：`com.android.test` 模块**不产出可安装的
+  APK**，被测目标由 `targetProjectPath = ":app"` 决定；但 AGP 仍然要求这个模块
+  有一个清单文件，否则 manifest merger 会报"缺少主清单"。
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" />

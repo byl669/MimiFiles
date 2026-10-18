@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_title">设置</string>
+
+    <!-- ── 外观 ─────────────────────────────────────────────────── -->
+    <string name="settings_group_appearance">外观</string>
+    <string name="settings_theme">主题</string>
+    <string name="settings_theme_system">跟随系统</string>
+    <string name="settings_theme_light">浅色</string>
+    <string name="settings_theme_dark">深色</string>
+    <string name="settings_view_mode">列表视图</string>
+    <string name="settings_view_mode_list">列表</string>
+    <string name="settings_view_mode_grid">网格</string>
+    <string name="settings_view_mode_details">详细信息</string>
+
+    <!-- ── 浏览 ─────────────────────────────────────────────────── -->
+    <string name="settings_group_browse">浏览</string>
+    <string name="settings_show_hidden">显示隐藏文件</string>
+    <string name="settings_show_hidden_summary">显示以「.」开头的文件与文件夹</string>
+
+    <!-- ── 播放（M7.6）───────────────────────────────────────────── -->
+    <string name="settings_group_playback">播放</string>
+    <string name="settings_player_speed">默认视频播放速度</string>
+    <string name="settings_player_speed_summary">所有视频打开即按这个速度播放，无需每次手动调</string>
+
+    <!-- ── 无线分享（M4）───────────────────────────────────────────
+         这几项按 `ShareServer.type` 分组（方案 §10.4「与设置统一」）：
+         端口是每协议各自的（FTP 2121 / HTTP 8080），混成一个"默认端口"
+         会让用户改了 HTTP 却以为 FTP 也变了。 -->
+    <string name="settings_group_share">无线分享</string>
+    <string name="settings_share_keep_screen">保持屏幕常亮</string>
+    <string name="settings_share_keep_screen_summary">分享期间不自动息屏，方便对着屏幕在电脑上操作</string>
+    <string name="settings_share_stop_on_exit">退出应用自动停止分享</string>
+    <string name="settings_share_stop_on_exit_summary">从最近任务划掉应用时立即停止分享服务端（建议保持开启）</string>
+    <string name="settings_share_port_http">HTTP 端口</string>
+    <string name="settings_share_port_ftp">FTP 端口</string>
+    <string name="settings_share_port_summary">端口被占用时会自动向上寻找可用端口</string>
+    <string name="settings_share_port_title">端口</string>
+    <string name="settings_share_port_hint">1024 ~ 65535</string>
+    <string name="settings_share_port_invalid">请输入 1024 到 65535 之间的端口号</string>
+    <string name="settings_share_port_saved">已保存，下次启动分享时生效</string>
+
+    <!-- ── 软件更新（M5）──────────────────────────────────────────
+         行上的分工：**摘要说"现在是什么情况"，按钮说"现在能做什么"**。
+         所以摘要句全部是状态陈述（"已是最新版本"/"发现新版本 x"），
+         按钮文字全部是动作（"检查更新"/"下载更新"/"立即安装"）。
+         两者混着写会让用户在同一行里看到两个动作，不知道该点哪一个。 -->
+    <string name="settings_update_title">软件更新</string>
+    <string name="settings_update_idle">当前版本 %1$s</string>
+    <string name="settings_update_check">检查更新</string>
+    <string name="settings_update_checking">正在检查…</string>
+    <string name="settings_update_recheck">重新检查</string>
+    <string name="settings_update_uptodate">已是最新版本（%1$s）</string>
+    <!-- 尺寸是清单里的**可选**字段，缺失时走下面那条不带尺寸的句子：
+         显示「约 0.0 MB」比不显示更糟 —— 它会让人以为包是空的。 -->
+    <string name="settings_update_available">发现新版本 %1$s，约 %2$.1f MB</string>
+    <string name="settings_update_available_no_size">发现新版本 %1$s</string>
+    <string name="settings_update_download">下载更新</string>
+    <string name="settings_update_downloading">正在下载 %1$d%%</string>
+    <string name="settings_update_ready">更新包已就绪 %1$s</string>
+    <string name="settings_update_install">立即安装</string>
+    <string name="settings_update_grant">去授权</string>
+    <string name="settings_update_grant_needed">需要一次性授权才能安装</string>
+    <!--
+      用"更新失败"而不是"检查失败"：`UpdateState.Failed` 同时覆盖"拉清单失败"与
+      "下载/校验失败"两类。行上写死其中一种会让另一种的提示明显不对（下载校验失败
+      却被告知"检查失败"），而用户看到的就是这一行。具体原因在详情对话框里。
+    -->
+    <string name="settings_update_failed_row">更新失败，点这里查看原因</string>
+    <string name="settings_update_retry">重试</string>
+
+    <!-- 更新对话框（dialog_update.xml，按状态填充） -->
+    <string name="update_dialog_cancel">取消</string>
+    <string name="update_dialog_later">稍后</string>
+    <string name="update_dialog_close">关闭</string>
+    <string name="update_dialog_title_checking">正在检查更新…</string>
+    <string name="update_dialog_msg_checking">正在查询版本清单（不会发送任何设备信息）。</string>
+    <string name="update_dialog_title_available">发现新版本 %1$s</string>
+    <string name="update_dialog_detail_available">下载约 %1$.1f MB。下载完成后会自动校验完整性、签名与版本，校验不过绝不会安装。</string>
+    <string name="update_dialog_detail_available_no_size">下载完成后会自动校验完整性、签名与版本，校验不过绝不会安装。</string>
+    <string name="update_dialog_notes_empty">修复与优化。</string>
+    <string name="update_dialog_title_ready">更新包就绪</string>
+    <string name="update_dialog_msg_ready">完整性、签名与版本都已校验通过。点「立即安装」后会打开系统安装器，安装期间应用会短暂退出，装完重新打开就是新版本（设置与连接都保留）。</string>
+    <string name="update_dialog_title_permission">需要一次性授权</string>
+    <string name="update_dialog_msg_permission">Android 8 以上安装应用要先允许一次：点「去授权」打开系统设置，打开「允许安装应用」开关后回来再点「立即安装」。</string>
+    <string name="update_dialog_title_failed">更新失败</string>
+    <string name="update_dialog_detail_failed">如果反复失败，可以把这一页截图发给开发者。检查更新不发送任何设备信息，所以服务端没有任何日志可用于排查。</string>
+    <string name="update_dialog_forced_hint">这个版本必须更新后才能继续使用。</string>
+
+    <!-- ── 关于 ─────────────────────────────────────────────────── -->
+    <string name="settings_group_about">关于</string>
+    <string name="settings_about_version">版本</string>
+    <string name="settings_about_desc">密密文件管理 · 轻量本地与网络文件管理</string>
+</resources>

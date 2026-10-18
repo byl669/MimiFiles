@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 手机竖屏：导航窗格是抽屉，不占布局宽度（由代码按 two_pane 隐藏/显示） -->
+<resources>
+    <dimen name="nav_pane_width">220dp</dimen>
+</resources>

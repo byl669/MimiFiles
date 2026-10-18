@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 排障提示卡底。复用 core:ui 的"功能受限"琥珀色（permission_bar_bg）：
+     这不是错误状态，而是"多半是环境问题、可以照着做点什么"。用红色会让人
+     以为应用坏了，而实际上它只是连不上某个路由器。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/permission_bar_bg" />
+    <corners android:radius="12dp" />
+</shape>

@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  详细信息行（横屏 Windows 资源管理器形态）。
+  列宽全部用固定 dp + 名称列 weight=1：这样表头与数据行天然对齐，
+  不需要在代码里测量同步宽度，也不怕用户改字体缩放。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/detailsRoot"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/compact_row_height"
+    android:background="?attr/selectableItemBackground"
+    android:foreground="@drawable/bg_row_activated"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="8dp"
+    android:paddingEnd="8dp">
+
+    <ImageView
+        android:id="@+id/detailsIcon"
+        android:layout_width="@dimen/details_icon_column"
+        android:layout_height="@dimen/icon_size_tree"
+        android:contentDescription="@null"
+        android:src="@drawable/ic_file_generic"
+        tools:ignore="ContentDescription" />
+
+    <TextView
+        android:id="@+id/detailsName"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:ellipsize="middle"
+        android:gravity="center_vertical"
+        android:maxLines="1"
+        android:textColor="@color/text_primary"
+        android:textSize="13sp"
+        tools:text="IMG_20261013.jpg" />
+
+    <TextView
+        android:id="@+id/detailsSize"
+        android:layout_width="@dimen/details_col_size"
+        android:layout_height="match_parent"
+        android:ellipsize="end"
+        android:gravity="center_vertical|end"
+        android:maxLines="1"
+        android:textColor="@color/text_secondary"
+        android:textSize="12sp"
+        tools:text="2.4 MB" />
+
+    <TextView
+        android:id="@+id/detailsTime"
+        android:layout_width="@dimen/details_col_time"
+        android:layout_height="match_parent"
+        android:ellipsize="end"
+        android:gravity="center_vertical|end"
+        android:maxLines="1"
+        android:textColor="@color/text_secondary"
+        android:textSize="12sp"
+        tools:text="2026-10-13 18:22" />
+
+    <TextView
+        android:id="@+id/detailsType"
+        android:layout_width="@dimen/details_col_type"
+        android:layout_height="match_parent"
+        android:ellipsize="end"
+        android:gravity="center_vertical|end"
+        android:maxLines="1"
+        android:textColor="@color/text_secondary"
+        android:textSize="12sp"
+        tools:text="JPG 图片" />
+</LinearLayout>

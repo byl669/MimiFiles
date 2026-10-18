@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- SAF 建文件时用户没填名字的兜底。放在资源里是为了以后能跟着系统语言走。 -->
+    <string name="provider_untitled">未命名</string>
+</resources>

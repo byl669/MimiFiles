@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  FileProvider 暴露给外部（系统安装器）的路径白名单。
+
+  ## 为什么只开 `update/` 一个子目录
+  FileProvider 的授权粒度就是这张表。写成 `<cache-path path="." />` 也能让安装器
+  读到 APK，但那等于把**整个 cacheDir**（缩略图缓存、预览临时文件、日志缓冲……）
+  都变成"任何拿到这个 content:// 授权 URI 的组件可读"。
+  安装器要的只是那一个 APK，所以就只给它那一个目录。
+
+  ## 为什么放在 cacheDir 而不是 filesDir
+  cache 的语义是"系统在空间紧张时可以回收"。这个包正好符合：丢了不要紧，
+  重新点一次「下载更新」即可（引擎里也确实不做断点续传）。
+  放 filesDir 会让一个 6 MB 的安装包长期占着"用户数据"的空间，而它随时可以重下。
+-->
+<paths>
+    <cache-path
+        name="update"
+        path="update/" />
+</paths>
