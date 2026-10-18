@@ -1,13 +1,13 @@
 {
-  "versionCode": 30,
-  "versionName": "0.7.18-M7.17",
+  "versionCode": 31,
+  "versionName": "0.7.19-M7.17",
   "publishedAt": "2026-10-18",
-  "notes": "更新通道迁移：清单改走 GitHub + jsDelivr CDN，安装包挂 GitHub Release（本版为双通道并存的首版）",
+  "notes": "清单多镜像回退：raw → jsDelivr → fastly 依次尝试（国内可达性 + 实时性兼顾）",
   "files": [
     {
       "abi": "arm64-v8a",
-      "url": "https://github.com/byl669/MimiFiles/releases/download/v0.7.18-M7.17/mimifiles-0.7.18-M7.17-arm64.apk",
-      "sha256": "3a5cbf4bd4fd55c866d75aba88ae908a31aeea57764a92ff84c3ea3797f6a913",
+      "url": "https://github.com/byl669/MimiFiles/releases/download/v0.7.19-M7.17/mimifiles-0.7.19-M7.17-arm64.apk",
+      "sha256": "d31e481766833a50ce143e1591462686e4124a452c952c4bc9bee5b402d45782",
       "size": 14206373
     }
   ],
