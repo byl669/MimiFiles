@@ -44,26 +44,42 @@ import java.io.File
  *
  * # 用法
  * ```kotlin
- * UpdateEngine.install(context, BuildConfig.UPDATE_MANIFEST_URL)  // Application.onCreate
+ * UpdateEngine.install(context, BuildConfig.UPDATE_MANIFEST_URLS)  // Application.onCreate
  * engine.state.collect { ... }                                    // 界面观察
  * engine.check() / engine.download() / engine.requestInstall()     // 用户动作
  * ```
  */
 class UpdateEngine private constructor(
     private val appContext: Context,
-    initialManifestUrl: String,
+    initialManifestUrls: List<String>,
 ) {
 
+    /**
+     * 清单镜像列表，按优先级排（raw 最实时 → jsDelivr → fastly）。
+     *
+     * ## 为什么是列表（PiliPlus 项目的实测教训）
+     * 单一镜像单点故障：raw 国内直连常被墙，jsDelivr 对分支引用有小时级缓存
+     * 且 purge 不保证生效。依次尝试、以「清单能解析」为成功判据，
+     * 任何一个镜像可达就拿到结果——这是把"更新检查偶尔失败"变成
+     * "几乎不失败"的唯一便宜手段。
+     */
+    private val manifestUrls: MutableList<String> =
+        initialManifestUrls
+            .filter { it.isNotBlank() }
+            .ifEmpty { listOf("about:blank") }
+            .toMutableList()
+
+    /** 本次检查实际成功的那一个镜像。下载 resolveUrl 相对路径时以它为基准。 */
     @Volatile
-    private var currentManifestUrl: String = initialManifestUrl
+    private var activeManifestUrl: String = manifestUrls.first()
 
     /**
-     * 当前生效的清单地址。
+     * 当前生效的清单地址（主镜像或调试覆盖值）。
      *
      * 是 `var` 而不是构造函数里的 `val`，只为了给冒烟留一个覆盖入口
-     * （见 [overrideManifestUrlForTest]）—— 生产路径永远只有编译期的那一个值。
+     * （见 [overrideManifestUrlForTest]）—— 生产路径永远只有编译期的那一组值。
      */
-    val manifestUrl: String get() = currentManifestUrl
+    val manifestUrl: String get() = activeManifestUrl
 
     /**
      * 更新自己的作用域。用 `NetworkDispatchers.io` 而不是裸 `Dispatchers.IO`：
@@ -110,12 +126,39 @@ class UpdateEngine private constructor(
         pendingManifest = null
         pendingFile = null
         _state.value = UpdateState.Checking
-        MimiLog.i(TAG, "检查更新：$manifestUrl")
+        MimiLog.i(TAG, "检查更新：镜像 ${manifestUrls.size} 个，首选 $activeManifestUrl")
         scope.launch {
             try {
-                val text = UpdateTransport.fetchManifestText(manifestUrl)
-                val manifest = UpdateManifestCodec.parse(text)
+                // 多镜像依次尝试：任一镜像**成功解析出清单**即用之。
+                // 成功判据是"parse 通过"而不是"HTTP 200"——镜像被墙时可能返回
+                // 错误页/空体，那些都必须当成"这个镜像失败"落到下一个。
+                var lastError: UpdateException? = null
+                var manifest: UpdateManifest? = null
+                for (url in manifestUrls) {
+                    try {
+                        val text = UpdateTransport.fetchManifestText(url)
+                        manifest = UpdateManifestCodec.parse(text)
+                        activeManifestUrl = url
+                        break
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: UpdateException) {
+                        MimiLog.w(TAG, "镜像失败，换下一个：$url（${e.message}）")
+                        lastError = e
+                    } catch (t: Throwable) {
+                        MimiLog.w(TAG, "镜像失败，换下一个：$url（${t.message}）")
+                        lastError = UpdateException("清单拉取失败：${t.message ?: t.javaClass.simpleName}", t)
+                    }
+                }
                 val installed = installedVersion.versionCode
+                if (manifest == null) {
+                    // 全部镜像都失败：把**最后一个**镜像的具体原因报出去（DNS 失败、
+                    // 超时……），前面只垫一句"共试了几个"。合并成一条，界面一行放得下。
+                    throw UpdateException(
+                        "检查更新失败（已尝试 ${manifestUrls.size} 个镜像）：${lastError?.message ?: "原因不明"}",
+                        lastError,
+                    )
+                }
                 when (
                     val decision = UpdatePlanner.decide(
                         manifest = manifest,
@@ -376,7 +419,9 @@ class UpdateEngine private constructor(
         }
         if (url.isBlank()) return false
 
-        currentManifestUrl = url
+        manifestUrls.clear()
+        manifestUrls.add(url.trim())
+        activeManifestUrl = url.trim()
         pendingManifest = null
         pendingFile = null
         runCatching { updateDir.listFiles()?.forEach { it.delete() } }
@@ -438,12 +483,14 @@ class UpdateEngine private constructor(
          *
          * 不重建是有意的：重建会把正在进行的下载状态丢掉，而"进程启动装配一次"
          * 本来就是唯一需要的用法（清单地址是编译期常量，不存在运行时切换）。
+         *
+         * @param manifestUrls 清单镜像地址，按优先级排序（见类注释的多镜像策略）
          */
-        fun install(context: Context, manifestUrl: String): UpdateEngine {
+        fun install(context: Context, manifestUrls: List<String>): UpdateEngine {
             instance?.let { return it }
             synchronized(this) {
                 instance?.let { return it }
-                val engine = UpdateEngine(context.applicationContext, manifestUrl)
+                val engine = UpdateEngine(context.applicationContext, manifestUrls)
                 // 清上一次运行留下的下载残留
                 engine.cleanup()
                 instance = engine

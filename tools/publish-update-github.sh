@@ -197,8 +197,17 @@ sleep 3
 BODY="$(curl -sS --noproxy '*' --connect-timeout 15 --max-time 60 -H 'Cache-Control: no-cache' "$JSDELIVR" -w '\nHTTP=%{http_code}')"
 CODE="$(printf '%s' "$BODY" | grep -o 'HTTP=[0-9]*' | tail -1 | cut -d= -f2)"
 [ "$CODE" = "200" ] || { echo "PUBLISH_FAIL jsDelivr 清单 HTTP=$CODE"; exit 1; }
-REMOTE_CODE="$(printf '%s' "$BODY" | sed '$d' | "$PY" -c 'import json,sys; print(json.load(sys.stdin)["versionCode"])')"
-[ "$REMOTE_CODE" = "$VERSION_CODE" ] || { echo "PUBLISH_FAIL jsDelivr 清单还是旧的（versionCode=$REMOTE_CODE）"; exit 1; }
+# 注意：BODY 尾行是 HTTP=code，先剥掉再喂 JSON 解析；解析失败按"旧清单"处理
+MANIFEST_ONLY="$(printf '%s' "$BODY" | sed '$d')"
+REMOTE_CODE="$(printf '%s' "$MANIFEST_ONLY" | "$PY" -c 'import json,sys
+try:
+    print(json.load(sys.stdin).get("versionCode", ""))
+except Exception:
+    print("")' 2>/dev/null || true)"
+if [ "$REMOTE_CODE" != "$VERSION_CODE" ]; then
+  echo "PUBLISH_FAIL jsDelivr 清单不是新版（读到的 versionCode=‘${REMOTE_CODE:-空}’，期望 $VERSION_CODE）"
+  exit 1
+fi
 echo "== 自检 jsDelivr 清单 ✓ versionCode=$REMOTE_CODE"
 for f in "${APK_ARGS[@]}"; do
   H="$(curl -sIL --noproxy '*' --connect-timeout 15 --max-time 60 \

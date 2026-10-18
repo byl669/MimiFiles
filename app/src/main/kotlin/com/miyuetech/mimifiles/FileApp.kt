@@ -37,7 +37,7 @@ class FileApp : Application() {
         // 放在 Application 里而不是设置页里，是为了让**下载活过页面**：
         // 用户在下载途中返回文件列表、或转屏重建设置页，都不该把下载掐断。
         // 附带好处是顺手清掉上一次运行留下的 `.part` 残留（见引擎的 cleanup）。
-        UpdateEngine.install(this, BuildConfig.UPDATE_MANIFEST_URL)
+        UpdateEngine.install(this, BuildConfig.UPDATE_MANIFEST_URLS)
         // MimiLog 的环形缓冲默认只留在内存里（靠设置页"导出日志"取）。
         // debug 包额外镜像到 logcat —— 这不是为了开发者方便，而是**排障链路的必要条件**：
         // 网络存储失败时界面上只有"连不上"三个字，真正的原因（TLS 握手、

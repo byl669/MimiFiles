@@ -59,9 +59,9 @@ android {
             // release 包去校验**必然**被签名那一关拒绝 —— 那是判据错了，不是代码错了。
             // 生产通道（HTTPS + 真清单）由 `--es update.url <生产地址>` 那条调试入口单独验。
             buildConfigField(
-                "String",
-                "UPDATE_MANIFEST_URL",
-                "\"http://127.0.0.1:9999/manifest.json\"",
+                "java.util.List<String>",
+                "UPDATE_MANIFEST_URLS",
+                "java.util.Arrays.asList(\"http://127.0.0.1:9999/manifest.json\")",
             )
         }
         release {
@@ -74,18 +74,22 @@ android {
             if (hasReleaseKeystore) {
                 signingConfig = signingConfigs.getByName("release")
             }
-            // 更新清单地址：GitHub 仓库 + jsDelivr CDN 分发（M7.17 起，替代自建
-            // NAS 通道）。清单是小文件，走 jsDelivr 的全球 CDN（发布脚本在更新
-            // 后会主动 purge，规避 CDN 缓存延迟）；APK 大文件不进仓库，挂
-            // GitHub Release，由 GitHub 自己的 CDN 出流量。清单里的 url 字段
-            // 是 Release 资产的绝对地址，客户端 resolveUrl 原样使用。
+            // 更新清单地址：GitHub 仓库 + CDN 多镜像（M7.17 起，替代自建 NAS 通道）。
+            // 清单是小文件，提交在仓库 update/manifest.json；APK 大文件不进仓库，
+            // 挂 GitHub Release，清单里的 url 字段是 Release 资产的绝对地址。
             //
-            // 发布流程见 tools/publish-update-github.sh；update/manifest.json
-            // 是清单在仓库里的正身。
+            // ## 为什么是镜像列表而不是单一地址（PiliPlus 项目实测教训）
+            // raw.githubusercontent.com 内容最实时但国内直连常被墙；jsDelivr CDN
+            // 可达性最好但对 @main 有小时级缓存、purge 也不保证生效。所以按
+            // 「raw → jsDelivr → fastly」依次尝试，任一成功即用——客户端
+            // 以「清单能解析出版本字段」为成功判据，天然挡掉镜像返回的错误页。
             buildConfigField(
-                "String",
-                "UPDATE_MANIFEST_URL",
-                "\"https://cdn.jsdelivr.net/gh/byl669/MimiFiles@main/update/manifest.json\"",
+                "java.util.List<String>",
+                "UPDATE_MANIFEST_URLS",
+                "java.util.Arrays.asList(" +
+                    "\"https://raw.githubusercontent.com/byl669/MimiFiles/main/update/manifest.json\", " +
+                    "\"https://cdn.jsdelivr.net/gh/byl669/MimiFiles@main/update/manifest.json\", " +
+                    "\"https://fastly.jsdelivr.net/gh/byl669/MimiFiles@main/update/manifest.json\")",
             )
         }
     }
