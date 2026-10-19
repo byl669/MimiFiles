@@ -699,7 +699,15 @@ class DocumentsActivity : AppCompatActivity() {
                 ),
             ),
         )
-        binding.navTree.setCurrentPath(state.location)
+        // M7.18：跟随当前目录——右侧无论怎么进来的（列表点击 / 面包屑 / 返回），
+        // 左侧树都像 Windows 资源管理器一样自动展开祖先链、高亮并滚到可见。
+        // 之前只 setCurrentPath（仅高亮），祖先不展开，侧栏"看起来坏了"。
+        val location = state.location
+        if (location == null) {
+            binding.navTree.setCurrentPath(null)
+        } else {
+            binding.navTree.revealPath(location)
+        }
         binding.navHint.visibility = if (state.roots.isEmpty()) View.VISIBLE else View.GONE
         binding.navSubtitle.text = when (state.tier) {
             null -> ""

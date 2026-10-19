@@ -66,6 +66,18 @@ class NavigationTreeView @JvmOverloads constructor(
     private val loading = HashSet<FsPath>()
     private var currentPath: FsPath? = null
 
+    /**
+     * 用户在当前路径上手动收起过的祖先节点。跟随机制不与人对着干：
+     * 换了目标路径即清空，恢复"自动展开祖先"的默认行为。
+     */
+    private val manuallyCollapsed = HashSet<FsPath>()
+
+    /**
+     * 待滚动目标（[revealPath] 挂起的"滚到当前节点"意图）。
+     * 祖先子目录异步加载到位、节点真正进列表后才消费并清空。
+     */
+    private var pendingReveal: FsPath? = null
+
     init {
         layoutManager = LinearLayoutManager(context)
         setHasFixedSize(true)
@@ -111,6 +123,8 @@ class NavigationTreeView @JvmOverloads constructor(
     fun submitChildren(parent: FsPath, children: List<FsEntry>) {
         loadedChildren[parent] = children
         loading.remove(parent)
+        // 祖先链是逐级异步喂进来的：每一次回填都可能让当前节点第一次
+        // 出现在列表里——rebuild 的 commit 回调会顺带兑现挂起的滚动。
         rebuild()
     }
 
@@ -134,21 +148,45 @@ class NavigationTreeView @JvmOverloads constructor(
     fun collapseAll() {
         expanded.clear()
         currentPath = null
+        pendingReveal = null
+        manuallyCollapsed.clear()
         rebuild()
     }
 
-    /** 展开到指定路径的所有祖先并滚到可见（左侧树的"跟随"能力）。 */
+    /** 展开到指定路径的所有祖先并滚到可见（左侧树的"跟随"能力，M7.18 接线）。 */
     fun revealPath(path: FsPath) {
-        path.chainFromRoot().dropLast(1).forEach { ancestor ->
+        // 宿主每次状态刷新都会走到这里；路径没变且祖先早已全部展开时，
+        // 重复滚动会把用户正在翻的树硬拽回去——资源管理器的跟随只在该跟时跟。
+        if (currentPath != path) manuallyCollapsed.clear()
+        val ancestors = path.chainFromRoot().dropLast(1)
+        if (currentPath == path && pendingReveal == null &&
+            ancestors.none { it in manuallyCollapsed } && ancestors.all { it in expanded }
+        ) {
+            return
+        }
+        currentPath = path
+        // 祖先的子目录是异步加载的，当前节点此刻多半还不在列表里；
+        // 先挂起"滚过去"的意图，等 submitChildren 把节点喂进来后再补滚。
+        pendingReveal = path
+        ancestors.forEach { ancestor ->
+            if (ancestor in manuallyCollapsed) return@forEach
             if (expanded.add(ancestor) && !loadedChildren.containsKey(ancestor)) {
                 loading.add(ancestor)
                 onRequestChildren?.invoke(ancestor)
             }
         }
-        currentPath = path
         rebuild()
-        val index = treeAdapter.currentList.indexOfFirst { it.path == path }
+    }
+
+    /**
+     * 滚到 [pendingReveal] 指向的节点；节点尚未出现在列表里（祖先还在异步加载）
+     * 就保留意图，等下一次 [submitChildren] 触发重试。
+     */
+    private fun scrollToRevealTarget() {
+        val target = pendingReveal ?: return
+        val index = treeAdapter.currentList.indexOfFirst { it.path == target }
         if (index >= 0) {
+            pendingReveal = null
             post { layoutManager?.scrollToPosition(index) }
         }
     }
@@ -171,7 +209,11 @@ class NavigationTreeView @JvmOverloads constructor(
             )
             section.entries.forEach { appendBranch(it, 0, rows) }
         }
-        treeAdapter.submitList(rows)
+        treeAdapter.submitList(rows) {
+            // ListAdapter 的 diff 异步提交：提交完成前 currentList 还是旧快照，
+            // 滚动必须等 commit 回调（挂起的 reveal 意图在这里才可能兑现）。
+            scrollToRevealTarget()
+        }
     }
 
     private fun appendBranch(entry: FsEntry, depth: Int, rows: MutableList<TreeRow>) {
@@ -197,11 +239,17 @@ class NavigationTreeView @JvmOverloads constructor(
 
     private fun toggle(node: FsPath) {
         if (!expanded.remove(node)) {
+            // 重新展开用户手动收起的节点：跟随约束随即解除
+            manuallyCollapsed.remove(node)
             expanded.add(node)
             if (!loadedChildren.containsKey(node)) {
                 loading.add(node)
                 onRequestChildren?.invoke(node)
             }
+        } else if (currentPath != null && currentPath!!.chainFromRoot().contains(node)) {
+            // 用户收起的是当前路径的祖先：记录在案， revealPath 不再把它
+            // 强行拽开（资源管理器同样尊重手动收起，直到换目标才恢复跟随）。
+            manuallyCollapsed.add(node)
         }
         rebuild()
     }
