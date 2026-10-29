@@ -47,4 +47,13 @@
     <!-- M7.14：外接显示器播放 -->
     <string name="player_ext_hint">画面正在外接显示器播放\n手机屏仅显示控制</string>
     <string name="player_ext_attached">画面已切换到外接显示器播放</string>
+    <!-- M7.24：审片时直接删片 -->
+    <string name="player_delete">删除这个视频</string>
+    <string name="player_delete_title">删除这个视频？</string>
+    <string name="player_delete_ok">删除</string>
+    <string name="player_deleting">正在删除…</string>
+    <string name="player_delete_done_next">已删除，继续播放下一个</string>
+    <string name="player_delete_done_last">已删除，这个文件夹里没有别的视频了</string>
+    <string name="player_delete_unsupported">这个位置不支持删除</string>
+    <string name="player_delete_failed">删除失败：%1$s</string>
 </resources>

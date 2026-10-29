@@ -140,6 +140,18 @@ data class BrowserUiState(
 
     /** 搜索状态；`null` 表示不在搜索中。 */
     val search: SearchState? = null,
+
+    /**
+     * 返回上一级后要"落"到的那一条（M7.24）。
+     *
+     * 存的是**刚离开的那个子目录**的路径。没有它，从 `A/B/C` 退回 `A/B` 时列表会回到
+     * 顶端，用户得重新往下翻——在一堆同类命名素材的目录里，这几乎等于重新找一遍。
+     *
+     * 一次性语义：界面滚到位后调 [com.miyuetech.mimifiles.feature.browser.BrowserViewModel.onRevealScrolled]，
+     * ViewModel 再留一小会儿高亮就自动清空。因此它不参与"当前位置"的判定，
+     * 只影响渲染。
+     */
+    val revealPath: FsPath? = null,
 ) {
     /**
      * 全部存储入口（合并视图）。首页列表与"当前位置是否为根"的判定都用它。

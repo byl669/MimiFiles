@@ -10,6 +10,7 @@
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/player_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -119,6 +120,25 @@
             app:tint="#FFFFFFFF" />
 
         <!--
+          删除（M7.24）：审片时"看着就决定删不删"，不该退回列表再找一遍。
+
+          为什么放在「视频信息」左边：右侧这一组是"当前这个文件"的操作，
+          删除与信息同属一类；而左侧的 上一个/下一个 是"换片子"，
+          把它们和删除排在一起，手指在快速翻片时很容易误触删除。
+
+          点它不会直接删 —— 弹一个确认面板（见文件末尾的 player_delete_panel），
+          面板就锚在这颗按钮正下方，拇指不用移动就能点到确认键。
+        -->
+        <ImageButton
+            android:id="@+id/player_delete"
+            android:layout_width="@dimen/select_action_size"
+            android:layout_height="@dimen/select_action_size"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/player_delete"
+            android:src="@drawable/ic_delete"
+            app:tint="#FFFFFFFF" />
+
+        <!--
           视频信息入口（M7）：弹信息面板（编码/分辨率/实际解码器/本机可用解码器），
           面板内可一键复制全文。放顶栏而不是塞进 Media3 齿轮菜单——
           那块是库私有结构（见 moveRotateButtonBesideSettings 的注释），不想再依赖一次。
@@ -223,4 +243,93 @@
         android:textColor="#FFFFFFFF"
         android:textSize="15sp"
         android:visibility="gone" />
+
+    <!--
+      删除二次确认（M7.24）。
+      ======================================================================
+      ## 为什么是覆盖层，不是 PopupWindow、也不是 AlertDialog
+      1. **AlertDialog 会跑到屏幕正中**，离删除键很远。用户的原话是"弹窗按钮就放在
+         删除键下方，这样手机点击起来比较方便"——拇指停在右上角，确认键必须在原地。
+      2. **PopupWindow 是独立窗口**，不跟随本页的"渲染旋转兜底"（M7.10 把整层
+         root 转 90° 那种）。那台折叠屏在兜底生效时，弹窗会横着贴在屏幕边上。
+         放在 root 里就跟其它控件一起转，任何设备都一致。
+      3. 代价是要自己算位置（见 VideoPlayerActivity.positionDeletePanel）并铺一层
+         全屏透明 View 吃"点外面取消"。两条都比"多一个窗口类型"好维护。
+
+      ## 为什么遮罩是透明的
+      M7.19 用户明确要求过"出现按钮时视频画面要正常"。确认面板自带不透明底色，
+      不需要再拿一层黑去压画面；这层只负责吃掉触摸，让"点空白 = 取消"成立。
+    -->
+    <View
+        android:id="@+id/player_delete_scrim"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@android:color/transparent"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/player_delete_panel"
+        android:layout_width="208dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:background="@drawable/bg_player_delete_card"
+        android:elevation="10dp"
+        android:orientation="vertical"
+        android:paddingTop="10dp"
+        android:paddingBottom="4dp"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:text="@string/player_delete_title"
+            android:textColor="#FFEDEDED"
+            android:textSize="14sp" />
+
+        <!-- 要把"删的是哪一个"摆出来：审片时一屏接一屏，光凭按钮点下去很容易删错。 -->
+        <TextView
+            android:id="@+id/player_delete_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:ellipsize="middle"
+            android:maxLines="1"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:textColor="#FF9E9E9E"
+            android:textSize="11sp"
+            tools:text="MVI_2034.MP4" />
+
+        <!-- 删除排上面：紧贴删除键，拇指不用移。误触由"第一下必然点在线"以外的
+             位置兜住——面板弹出时手指已经抬起，第二下是用户看清后再点的。 -->
+        <TextView
+            android:id="@+id/player_delete_ok"
+            android:layout_width="match_parent"
+            android:layout_height="46dp"
+            android:layout_marginTop="6dp"
+            android:background="?attr/selectableItemBackground"
+            android:gravity="center"
+            android:text="@string/player_delete_ok"
+            android:textColor="#FFFF6B6B"
+            android:textSize="15sp" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#26FFFFFF" />
+
+        <TextView
+            android:id="@+id/player_delete_cancel"
+            android:layout_width="match_parent"
+            android:layout_height="46dp"
+            android:background="?attr/selectableItemBackground"
+            android:gravity="center"
+            android:text="@android:string/cancel"
+            android:textColor="#FFFFFFFF"
+            android:textSize="15sp" />
+    </LinearLayout>
 </FrameLayout>

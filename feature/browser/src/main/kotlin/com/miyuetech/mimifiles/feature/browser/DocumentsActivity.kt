@@ -27,6 +27,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.miyuetech.mimifiles.core.common.Authorities
 import com.miyuetech.mimifiles.core.common.Formatters
 import com.miyuetech.mimifiles.core.fs.FileSystems
+import com.miyuetech.mimifiles.core.fs.FsMutations
 import com.miyuetech.mimifiles.core.fslocal.StorageAccessManager
 import com.miyuetech.mimifiles.core.fslocal.StorageTier
 import com.miyuetech.mimifiles.core.model.FileViewMode
@@ -135,6 +136,16 @@ class DocumentsActivity : AppCompatActivity() {
     /** 搜索菜单项（M6 · P1-5）。判"要不要先收起搜索"时要用它，见 [exitSearch]。 */
     private var searchItem: MenuItem? = null
 
+    /**
+     * 「返回上级后落位」已经滚到过的目标（M7.24）。
+     *
+     * `renderList` 会因为任何状态变化被反复调用（搜索进度、选中变化…），
+     * 每次提交列表都带一个 commit 回调；没有这道闸门，同一次返回会被滚好几次，
+     * 用户已经开始手动了还会被拽回去。`revealPath` 变回 `null` 时一并复位，
+     * 这样下次退回到同一个目录还能再滚。
+     */
+    private var revealedFor: FsPath? = null
+
     // ── 平台结果回调 ────────────────────────────────────────────────────
 
     private val runtimePermissionLauncher =
@@ -208,6 +219,16 @@ class DocumentsActivity : AppCompatActivity() {
         }
         // 用户可能绕过应用、直接从系统设置里改了权限
         viewModel.refreshStorageAccess()
+        // 在播放页里删了片子（M7.24）：回来后要重新列一次这个目录，否则已删的条目
+        // 还挂在列表上——点它只会报"文件不存在"，而且比报错更糟的是**看着像没删成功**。
+        //
+        // 走标记而不是 `StartActivityForResult` 的 resultCode：播放页是**预览页**
+        // 拉起来的，而预览页把片子转手之后自己就 finish 了，结果会被 Android 丢给
+        // 一个已销毁的 Activity，永远到不了这里。详见 [FsMutations] 的类注释。
+        //
+        // 刷新走 [BrowserViewModel.refresh]，它不清空当前列表：清了 DiffUtil 就是
+        // "全删+全加"，滚动位置直接回顶端，审片的人得从头再翻一遍。
+        if (FsMutations.consumeChanged(viewModel.state.value.location)) viewModel.refresh()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -729,6 +750,12 @@ class DocumentsActivity : AppCompatActivity() {
 
         // 剪切中的条目半透明：让用户直观知道"这些一会儿会消失"
         val cutPaths = state.clipboard?.takeIf { it.cut }?.paths?.toHashSet().orEmpty()
+        val reveal = state.revealPath
+        val revealIndex = if (reveal == null) -1 else state.entries.indexOfFirst { it.path == reveal }
+        if (reveal == null) revealedFor = null
+        val needScroll = reveal != null && revealIndex >= 0 && reveal != revealedFor
+        // 提交完成后再滚：`submitList` 的 diff 是异步的，提交前 `scrollToPosition`
+        // 拿到的是旧列表的位置，滚过去会停在错的条目上。
         adapter.submitList(
             state.entries.map { entry ->
                 FileRowItem(
@@ -736,9 +763,34 @@ class DocumentsActivity : AppCompatActivity() {
                     selected = entry.path in state.selection,
                     selectionMode = state.selectionMode,
                     pendingCut = entry.path in cutPaths,
+                    focused = entry.path == reveal,
                 )
             },
-        )
+        ) {
+            if (needScroll) {
+                revealedFor = reveal
+                scrollToRevealed(revealIndex)
+                viewModel.onRevealScrolled()
+            }
+        }
+    }
+
+    /**
+     * 把第 [index] 条滚到可见，并让它落在列表上方约 1/3 处（M7.24）。
+     *
+     * 不用 `scrollToPosition`：它会把目标顶到列表最上沿，用户看不到"前面还有什么"，
+     * 而返回上级之后恰恰最需要那点上下文（"我原来在一堆同级目录里的哪个位置"）。
+     *
+     * `layoutManager` 统一按 `LinearLayoutManager` 处理——网格模式用的是它的子类
+     * `GridLayoutManager`，`scrollToPositionWithOffset` 在两边语义一致。
+     */
+    private fun scrollToRevealed(index: Int) {
+        val manager = binding.fileList.layoutManager as? LinearLayoutManager
+        if (manager == null) {
+            binding.fileList.scrollToPosition(index)
+            return
+        }
+        manager.scrollToPositionWithOffset(index, (binding.fileList.height / 3).coerceAtLeast(0))
     }
 
     private fun renderSortHeader(state: BrowserUiState) {
@@ -925,6 +977,9 @@ class DocumentsActivity : AppCompatActivity() {
             return
         }
         PreviewArgs.putExtras(target, args)
+        // 裸 startActivity，不等结果：预览页可能把片子转手给播放器再自己 finish，
+        // 结果路径接不住（见 FsMutations 注释）。删片之后的刷新由 [onResume] 里的
+        // 一次性标记负责。
         startActivity(target)
     }
 

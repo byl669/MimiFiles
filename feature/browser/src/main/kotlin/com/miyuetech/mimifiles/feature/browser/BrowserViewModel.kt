@@ -97,6 +97,9 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
     private var listJob: Job? = null
 
+    /** 「返回上级后落位高亮」的撤销任务。再次导航时必须作废，否则会清掉新一轮的 revealPath。 */
+    private var revealClearJob: Job? = null
+
     /** 深搜任务。取消它 = 停止遍历（[updateSearchQuery] / [exitSearch] 都会取消）。 */
     private var searchJob: Job? = null
 
@@ -202,12 +205,22 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 selectionMode = false,
                 empty = if (roots.isEmpty()) EmptyKind.NO_PERMISSION else EmptyKind.NONE,
                 errorText = null,
+                // 首页没有"刚离开的子目录"这回事，别把上一页的高亮带出来
+                revealPath = null,
             )
         }
         deriveEntries()
     }
 
-    fun openPath(path: FsPath) {
+    /**
+     * 进目录。
+     *
+     * @param reveal     回到父目录时要"落"到的那一条（只有 [goUp] 会传）。
+     * @param clearFirst 是否先清空列表。换目录**必须**清（否则会短暂看到上一个目录的内容）；
+     *                   原地刷新**必须不清**（清了 DiffUtil 就变成"全删+全加"，
+     *                   RecyclerView 的滚动位置直接回到顶端，见 [refresh]）。
+     */
+    fun openPath(path: FsPath, reveal: FsPath? = null, clearFirst: Boolean = true) {
         listJob?.cancel()
         // 进目录 = 换了一个搜索范围。不退出搜索的话，新目录的列表会被上一次的
         // 关键词继续过滤，而且深搜会从**新目录**接着往子树里跑 ——
@@ -218,26 +231,63 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
                 location = path,
                 selection = emptySet(),
                 selectionMode = false,
-                empty = EmptyKind.LOADING,
+                empty = if (clearFirst) EmptyKind.LOADING else it.empty,
                 errorText = null,
-                entries = emptyList(),
+                entries = if (clearFirst) emptyList() else it.entries,
+                revealPath = reveal,
             )
         }
+        // 上一次的"到点自动撤高亮"必须作废，否则它会在这次导航的半途把 revealPath 清掉。
+        revealClearJob?.cancel()
         listJob = viewModelScope.launch { reload(path) }
     }
 
-    /** 重新读取当前目录（下拉刷新、粘贴/删除之后、从后台返回）。 */
+    /**
+     * 重新读取当前目录（下拉刷新、粘贴/删除之后、从预览/播放页返回）。
+     *
+     * ## 为什么**不清空**当前列表（M7.24）
+     * 以前它等价于 `openPath(current)`，会先把 `entries` 置空、`empty` 置 LOADING。
+     * 本地盘上用户看不出来；但"改完东西要刷新"的场景代价很具体：列表先空一帧再填回来，
+     * `DiffUtil` 看到的是"全删 + 全加"，**RecyclerView 的滚动位置直接回到顶端**。
+     * 审片时在播放页删掉一个片子、退回列表，就得从头再翻一遍 —— 正是用户抱怨的那件事。
+     *
+     * 现在只换数据不换空态（`reload` 拿到新列表才替换），中间那几十毫秒旧列表还在。
+     */
     fun refresh() {
         val current = _state.value.location
-        if (current == null) showHome() else openPath(current)
+        if (current == null) showHome() else openPath(current, clearFirst = false)
     }
 
-    /** 返回上一级；已在卷根或首页时停在首页。 */
+    /**
+     * 返回上一级；已在卷根或首页时停在首页。
+     *
+     * ## 为什么要把"刚离开的目录"带过去（M7.24）
+     * 退回父目录后，用户要的不是"这个目录"，而是"我刚才待的那个子文件夹"。
+     * 滚到顶端等于让他重新找一遍，在一堆同名系列的素材目录里尤其难受。
+     */
     fun goUp() {
         val current = _state.value.location ?: return
         val atRoot = _state.value.roots.any { it.path == current }
         val parent = current.parent
-        if (atRoot || parent == null || parent.isRoot) showHome() else openPath(parent)
+        if (atRoot || parent == null || parent.isRoot) {
+            showHome()
+        } else {
+            openPath(parent, reveal = current)
+        }
+    }
+
+    /**
+     * 界面已经把列表滚到 [BrowserUiState.revealPath] 了。
+     *
+     * 计时从"真的滚到位"开始，而不是从"发起导航"开始：NAS 上列一次目录要几百毫秒，
+     * 若从导航时就开始倒计时，慢盘上会出现"高亮已经撤了、列表才刚出来"。
+     */
+    fun onRevealScrolled() {
+        revealClearJob?.cancel()
+        revealClearJob = viewModelScope.launch {
+            delay(REVEAL_HIGHLIGHT_MS)
+            _state.update { if (it.revealPath == null) it else it.copy(revealPath = null) }
+        }
     }
 
     /** 点击列表条目：多选模式下切换勾选，否则进目录 / 打开文件。 */
@@ -913,6 +963,14 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
 
         /** 结果发布的节流间隔。改这个值只影响"结果滚进来的观感"，不影响正确性。 */
         const val SEARCH_PUBLISH_MS = 250L
+
+        /**
+         * 「返回上级后落位」的高亮保留时长。
+         *
+         * 太短（<1s）用户还没看清就没了；太长会让人以为这一行是"选中/剪切中"。
+         * 1.6s 大约等于"看到 → 确认是它 → 手指开始动"的一拍。
+         */
+        const val REVEAL_HIGHLIGHT_MS = 1600L
 
         /** 本机后端的列举并发。本机 `list()` 是一次 syscall 级别的操作，开 4 条不构成压力。 */
         const val LOCAL_WORKERS = 4

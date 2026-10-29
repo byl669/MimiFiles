@@ -17,6 +17,14 @@ data class FileRowItem(
     val selectionMode: Boolean = false,
     /** 位于剪切板中的条目：显示半透明，让用户知道"这东西一会儿会消失"。 */
     val pendingCut: Boolean = false,
+    /**
+     * 「刚返回上级时落位」的那一行（M7.24）：短暂高亮，告诉用户"你刚才在的就是这个"。
+     *
+     * 与 [selected] 分开一个字段，是因为两者语义完全不同（一个是待操作集合，
+     * 一个是空间记忆），只是恰好复用同一套视觉。合成一个字段会让"多选时退回上级"
+     * 变成语义含糊的状态。
+     */
+    val focused: Boolean = false,
 ) {
     val path: FsPath get() = entry.path
 }

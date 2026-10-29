@@ -250,8 +250,10 @@ class FileListAdapter : ListAdapter<FileRowItem, RecyclerView.ViewHolder>(DIFF) 
     }
 
     private fun bindState(root: View, check: ImageView?, item: FileRowItem) {
-        // isActivated 驱动 foreground 里的选中高亮（见 bg_row_activated.xml）
-        root.isActivated = item.selected
+        // isActivated 驱动 foreground 里的选中高亮（见 bg_row_activated.xml）。
+        // focused（M7.24）复用同一层：从子目录退回父目录时，"刚才在的那个文件夹"
+        // 亮一下，用户一眼就能定位，不用从顶端重新往下翻。
+        root.isActivated = item.selected || item.focused
         // 剪切中的条目半透明：让用户直观知道"这些一会儿会消失"
         root.alpha = if (item.pendingCut) 0.45f else 1f
         check ?: return

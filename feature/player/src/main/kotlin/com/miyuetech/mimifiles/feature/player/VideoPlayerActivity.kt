@@ -18,6 +18,7 @@ import android.os.Bundle
 import android.util.Rational
 import android.util.TypedValue
 import android.view.Display
+import android.view.Gravity
 import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
@@ -58,8 +59,12 @@ import com.miyuetech.mimifiles.core.datastore.MimiDatabase
 import com.miyuetech.mimifiles.core.datastore.PlaybackRepository
 import com.miyuetech.mimifiles.core.datastore.SettingsRepository
 import com.miyuetech.mimifiles.core.fs.FileSystems
+import com.miyuetech.mimifiles.core.fs.FsMutations
+import com.miyuetech.mimifiles.core.fs.toFsException
+import com.miyuetech.mimifiles.core.model.FsCapability
 import com.miyuetech.mimifiles.core.model.FsEntry
 import com.miyuetech.mimifiles.core.model.FsPath
+import com.miyuetech.mimifiles.core.model.has
 import com.miyuetech.mimifiles.core.preview.ExternalOpen
 import com.miyuetech.mimifiles.core.preview.PreviewArgs
 import com.miyuetech.mimifiles.core.preview.PreviewUri
@@ -77,6 +82,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Locale
 import kotlin.math.abs
+import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
 /**
@@ -241,6 +247,12 @@ class VideoPlayerActivity : AppCompatActivity() {
         // 控制条自带的全屏黑色遮罩会整体压暗视频（M7.19 用户反馈）。放到最后统一清掉。
         stripControllerScrim()
         binding.playerInfo.setOnClickListener { showVideoInfo() }
+        // 删除（M7.24）：二次确认面板锚在这颗按钮正下方，见 showDeleteConfirm。
+        binding.playerDelete.setOnClickListener { toggleDeleteConfirm() }
+        binding.playerDeleteOk.setOnClickListener { performDelete() }
+        binding.playerDeleteCancel.setOnClickListener { dismissDeleteConfirm() }
+        // 点面板外面 = 取消。用全屏透明 View 而不用 PopupWindow 的理由见布局注释。
+        binding.playerDeleteScrim.setOnClickListener { dismissDeleteConfirm() }
 
         binding.playerView.setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
         binding.playerView.resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
@@ -1066,6 +1078,11 @@ class VideoPlayerActivity : AppCompatActivity() {
             MimiLog.i(TAG, "系统已自行转屏，撤除渲染旋转兜底防双重旋转")
             clearRenderRotation()
         }
+        // 删除确认面板是按"锚点相对 root 的坐标"摆的，窗口尺寸一变必须重算，
+        // 否则横竖屏切换后面板会飘在离删除键很远的地方。
+        if (binding.playerDeletePanel.visibility == View.VISIBLE) {
+            binding.playerDeletePanel.post { positionDeletePanel() }
+        }
     }
 
     private fun toast(text: CharSequence) {
@@ -1095,7 +1112,12 @@ class VideoPlayerActivity : AppCompatActivity() {
         updateVerticalSeekBars(!isInPictureInPictureMode)
         // 渲染旋转兜底若在，进 PiP 前撤掉：小窗按窗口几何重排，旋转 90° 的内容
         // 在小窗里是侧躺的（M7.10）。
-        if (isInPictureInPictureMode) clearRenderRotation()
+        if (isInPictureInPictureMode) {
+            clearRenderRotation()
+            // 删除确认面板同理：小窗里既不该留着"要不要删"的询问，
+            // 全屏遮罩也会把缩略画面整块吃掉。
+            dismissDeleteConfirm()
+        }
     }
 
     // ── M7.13：字幕选择 ──────────────────────────────────────────
@@ -1769,7 +1791,11 @@ class VideoPlayerActivity : AppCompatActivity() {
 
     private fun savePosition() {
         val exo = player ?: return
-        val path = args.current.toString()
+        val current = args.current
+        // 刚删掉的那个不写：删除成功后到"切到下一个"之间会经历 onStop/onDestroy，
+        // 不加这一条就会把刚 forget 掉的记录原样写回去（文件没了，进度留下了）。
+        if (current == deletedPath) return
+        val path = current.toString()
         val position = exo.currentPosition
         if (position <= 0L) return
         val duration = exo.duration.takeIf { it > 0L } ?: 0L
@@ -1799,6 +1825,8 @@ class VideoPlayerActivity : AppCompatActivity() {
     }
 
     private fun playNeighbour(step: Int) {
+        // 删除进行中：`args.paths` 还没同步（见 deleting 的注释），此刻换片会让下标错位。
+        if (deleting) return
         val next = neighbourIndex(args.index, step)
         if (next == null) {
             android.widget.Toast.makeText(this, R.string.player_no_more, android.widget.Toast.LENGTH_SHORT)
@@ -1808,6 +1836,163 @@ class VideoPlayerActivity : AppCompatActivity() {
         savePosition()
         play(next)
     }
+
+    // ── M7.24：审片时直接删片 ────────────────────────────────────
+    //
+    // ## 为什么删除要放在播放页里
+    // 审片的动作序列是"看几秒 → 决定去留 → 下一部"。若要删就得退回列表、长按、确认、
+    // 再点回播放器，一百个片子就是几百次往返。所以删除必须就地做，且删完**接着播**。
+    //
+    // ## 删完播谁
+    // 删掉的是第 i 个，剩下的同目录视频里取**原来第 i+1 个**（现在落在 i 位）接着播 ——
+    // 与"下一个"按钮的语义完全一致，不会因为前面删过几个就把顺序记错。
+    // 后面没有视频了就退出页面，回到刚才那个文件夹（删过谁由
+    // [com.miyuetech.mimifiles.core.fs.FsMutations] 的标记告诉浏览页，让它重列一次）。
+
+    /** 刚删掉的路径。留在会话里当"墓碑"，防止 onStop 的 [savePosition] 把它写回进度表。 */
+    private var deletedPath: FsPath? = null
+
+    /**
+     * 正在删（网络盘上可能要一两秒）。
+     *
+     * 这期间要挡住"上一个/下一个/再点删除"：删掉的是**按下那一刻**的第 i 个，
+     * 而 `advanceAfterDelete` 之后才去改列表。中途换片会让下标与列表对不上，
+     * 结果是"删了 A、界面跳到 B、实际播 C"这种最难复现的事故。
+     */
+    private var deleting = false
+
+    private fun toggleDeleteConfirm() {
+        if (deleting) return
+        if (binding.playerDeletePanel.visibility == View.VISIBLE) {
+            dismissDeleteConfirm()
+        } else {
+            showDeleteConfirm()
+        }
+    }
+
+    private fun showDeleteConfirm() {
+        binding.playerDeleteName.text = args.current.displayName
+        binding.playerDeleteScrim.visibility = View.VISIBLE
+        binding.playerDeletePanel.visibility = View.VISIBLE
+        // 面板开着时不能让控制条自己收起来：它一收，顶栏（含删除键）也跟着 GONE，
+        // 面板就悬在一片没有锚点的画面上了。
+        binding.playerView.controllerShowTimeoutMs = 0
+        binding.playerView.showController()
+        // 等一帧再量坐标：showController 之后顶栏才真正完成布局。
+        binding.playerDeletePanel.post { positionDeletePanel() }
+    }
+
+    /**
+     * 把面板挪到删除键正下方、右边缘对齐。
+     *
+     * 用 `getLocationInWindow` 两两相减而不是自己拼 padding 链：顶栏吃了状态栏 inset
+     * （`padForSystemBars`），按钮的 y 不是任何常量的函数，量出来才是对的。
+     * 右对齐（Gravity.END + rightMargin）保证面板向左展开，不会顶出屏幕右侧——
+     * 而 rightMargin 只跟 root 右缘和锚点右缘有关，**不需要**面板自己的宽度。
+     *
+     * `attempt` 是给"刚 showController、顶栏还没走完布局"那种一帧之内的竞态用的：
+     * 量不到就下一帧再量，最多 3 次，实在不行就停在布局里默认的 `top|end` 位置
+     * （视觉上仍在顶栏右下方，只是没有对齐到删除键）。
+     */
+    private fun positionDeletePanel(attempt: Int = 0) {
+        val anchor = binding.playerDelete
+        if (anchor.width <= 0) {
+            if (attempt < 3) binding.playerDeletePanel.post { positionDeletePanel(attempt + 1) }
+            return
+        }
+        val anchorLoc = IntArray(2)
+        val rootLoc = IntArray(2)
+        anchor.getLocationInWindow(anchorLoc)
+        binding.root.getLocationInWindow(rootLoc)
+        val params = binding.playerDeletePanel.layoutParams as? FrameLayout.LayoutParams ?: return
+        params.gravity = Gravity.TOP or Gravity.END
+        params.topMargin = (anchorLoc[1] - rootLoc[1]) + anchor.height + dp(4)
+        params.rightMargin = (rootLoc[0] + binding.root.width) - (anchorLoc[0] + anchor.width)
+        binding.playerDeletePanel.layoutParams = params
+    }
+
+    private fun dismissDeleteConfirm() {
+        binding.playerDeletePanel.visibility = View.GONE
+        binding.playerDeleteScrim.visibility = View.GONE
+        binding.playerView.controllerShowTimeoutMs = controllerShowTimeoutMs
+    }
+
+    private fun performDelete() {
+        if (deleting) return
+        val path = args.current
+        val index = args.index
+        dismissDeleteConfirm()
+
+        // 只读后端（无删除位的 SAF 授权树等）当场说清楚，不做"点了没反应"。
+        if (!FileSystems.registry.capabilitiesOf(path.scheme).has(FsCapability.DELETE)) {
+            toast(getString(R.string.player_delete_unsupported))
+            return
+        }
+
+        deleting = true
+        lifecycleScope.launch {
+            showHud(getString(R.string.player_deleting))
+            // ⚠️ 必须先松开读取句柄再删。播放器此刻正握着这个文件，而 SMB/WebDAV
+            // 服务端对"被别的句柄打开着"的文件常常直接拒绝删除（共享冲突），
+            // 表现是"本地盘能删、NAS 上删不掉"。stop() 让 ExoPlayer 释放数据源，
+            // clearMediaItems() 连 MediaSource 一起放掉 —— 删完要播下一个，
+            // 反正会重新 setMediaItem。
+            player?.stop()
+            player?.clearMediaItems()
+            val failure = withContext(Dispatchers.IO) {
+                runCatching {
+                    FileSystems.registry.resolve(path).delete(path)
+                    // 进度记录跟着文件走：留着它，同名新文件会"莫名从前任的 37 分钟继续"。
+                    runCatching { playback.forget(path.toString()) }
+                }.exceptionOrNull()
+            }
+            if (failure != null) {
+                val reason = runCatching { failure.toFsException(path).message }
+                    .getOrNull() ?: failure.message.orEmpty()
+                toast(getString(R.string.player_delete_failed, reason))
+                deleting = false
+                // 画面已经在上面被停掉了：不重新起播就是一片黑，
+                // 用户会以为"点了删除，播放器坏了"。重新 play 会顺带恢复到原进度。
+                play(index)
+                return@launch
+            }
+            deletedPath = path
+            // 让浏览页回到列表时重新列一次这个目录。
+            // ⚠️ 不用 `setResult(RESULT_OK)`：播放器是**预览页**拉起来的，而预览页
+            // 转手之后已经 finish 了，结果会落到一个销毁了的 Activity 上被 Android
+            // 丢掉。这条标记走进程内共享状态，跟中间隔了几跳无关。
+            FsMutations.markChanged(path.parent)
+            advanceAfterDelete(index)
+            deleting = false
+        }
+    }
+
+    /**
+     * 删掉 [index] 之后接着播。
+     *
+     * ## 顺序上有个坑，必须按这个顺序写
+     * "找不到下一个就收场"这条分支**不能**先把 `args.index` 挪到别的条目上再 finish：
+     * `onDestroy` 里的 [savePosition] 读的是 `exo.currentPosition`（此刻仍然是**刚删掉
+     * 那个片子**的进度）而写的是 `args.current`。一旦先把 index 改到前一条，就会把
+     * 已删文件的进度写到另一部片子身上 —— 下次打开那部会从莫名其妙的位置开始。
+     * 所以：先算"删掉之后原位置现在是谁"，算不出来就保持 args 原样直接退出
+     * （[deletedPath] 这道闸门会让 savePosition 跳过它）。
+     */
+    private fun advanceAfterDelete(index: Int) {
+        val next = DeleteAdvance.nextAfterDelete(args.paths.map { it.displayName }, index)
+        if (next < 0) {
+            toast(getString(R.string.player_delete_done_last))
+            finish()
+            return
+        }
+        val remaining = ArrayList(args.paths)
+        if (index in remaining.indices) remaining.removeAt(index)
+        args = args.copy(paths = remaining, index = next)
+        showHud(getString(R.string.player_delete_done_next))
+        play(next)
+    }
+
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).roundToInt()
 
     private fun enterPip() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
