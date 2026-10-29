@@ -1,14 +1,14 @@
 {
-  "versionCode": 32,
-  "versionName": "0.7.20-M7.18",
-  "publishedAt": "2026-10-19",
-  "notes": "M7.18: 侧栏目录树跟随当前目录——在右侧进入任意文件夹后，左侧树自动展开其祖先链、高亮并滚动到可见（Windows 资源管理器机制）",
+  "versionCode": 33,
+  "versionName": "0.7.21-M7.19",
+  "publishedAt": "2026-10-29",
+  "notes": "M7.19: 播放画面不再被控制条压暗（去掉全屏半透明黑遮罩，顶栏改渐变）；新增左右竖向进度条，单手握持平板时拇指在屏幕边缘上下滑即可调进度，下方横向进度条保留",
   "files": [
     {
       "abi": "arm64-v8a",
-      "url": "https://github.com/byl669/MimiFiles/releases/download/v0.7.20-M7.18/mimifiles-0.7.20-M7.18-arm64.apk",
-      "sha256": "ce54f56c98b74547f966c03f1fa23775e92c5ffec890b789c0546c004fd61fe5",
-      "size": 14206373
+      "url": "https://github.com/byl669/MimiFiles/releases/download/v0.7.21-M7.19/mimifiles-0.7.21-M7.19-arm64.apk",
+      "sha256": "7fdd533d76fb47d2f689b60207346bc932d24f2a9876fb68a79af5f01a4ea57b",
+      "size": 14207905
     }
   ],
   "minSupported": 0
