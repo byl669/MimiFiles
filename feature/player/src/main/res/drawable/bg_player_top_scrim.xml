@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  顶栏底衬（M7.19）：由深到全透的竖向渐变，取代原来那块 60% 纯黑的实心条。
+
+  为什么不用纯透明：返回键、标题、上/下一个都是白色图标，遇亮画面（雪景、
+  白墙、文档录屏）会糊成一片，看不出有按钮。
+
+  为什么不用原来的实心黑：那是一整条黑带压在画面上，与"点一下屏幕画面不该
+  变暗"直接冲突。渐变从视觉上是"从屏幕边缘化开的阴影"，中间以下完全透明，
+  画面主体不受影响 —— VLC / YouTube 的顶栏都是这个做法。
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="270"
+        android:endColor="#00000000"
+        android:startColor="#D9000000"
+        android:type="linear" />
+</shape>

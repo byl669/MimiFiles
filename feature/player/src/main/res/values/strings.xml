@@ -7,6 +7,8 @@
     <string name="player_volume">音量 %1$d%%</string>
     <string name="player_seek_forward">快进 %1$s</string>
     <string name="player_seek_backward">快退 %1$s</string>
+    <string name="player_seek_bar">拖动调整播放进度</string>
+    <string name="player_scrub_preview">%1$s / %2$s</string>
     <string name="player_resume_from">已从 %1$s 继续播放</string>
     <string name="player_error_title">这个视频播放失败</string>
     <string name="player_error_decoder">硬解与系统软解都没能播放这个视频（常见于 HEVC 10-bit / AV1 这类设备缺少解码器的编码），可以交给其它播放器试试。</string>

@@ -50,13 +50,13 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="top"
-        android:background="#99000000"
+        android:background="@drawable/bg_player_top_scrim"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingStart="@dimen/content_padding_half"
         android:paddingTop="4dp"
         android:paddingEnd="@dimen/content_padding_half"
-        android:paddingBottom="4dp">
+        android:paddingBottom="10dp">
 
         <ImageButton
             android:id="@+id/player_back"
@@ -156,6 +156,40 @@
             android:src="@drawable/ic_rotate_landscape"
             app:tint="#FFFFFFFF" />
     </LinearLayout>
+
+    <!--
+      左右竖向进度条（M7.19）：单手握持平板时，拇指在屏幕边缘上下滑调进度，
+      不必把手伸到屏幕底部去够那条横向进度条。下方横向进度条**保留**。
+
+      为什么两侧都放：左手持、右手持都可能，两侧功能完全相同（同一份比例）。
+
+      为什么跟着控制条一起显隐（而不是常驻）：
+       1. 常驻会在画面边缘永久压两条东西，与"画面要干净"冲突；
+       2. 它们宽 44dp、贴在边缘，正好盖住 PlayerGestures 的「左半边上下滑=亮度 /
+          右半边上下滑=音量」热区。控制条收起时边缘手势必须还给亮度/音量，
+          只有控件可见时才让竖条优先 —— 这一分工靠显隐实现，见
+          VideoPlayerActivity.updateVerticalSeekBars()。
+
+      高度固定 320dp 而不是 match_parent：太长的条会让拇指单程滑动跨越整个
+      屏幕，微调反而更难；320dp 在平板竖持时约等于拇指自然弧线的一跨。
+    -->
+    <com.miyuetech.mimifiles.feature.player.VerticalSeekBarView
+        android:id="@+id/player_seek_left"
+        android:layout_width="44dp"
+        android:layout_height="320dp"
+        android:layout_gravity="start|center_vertical"
+        android:layout_marginStart="2dp"
+        android:contentDescription="@string/player_seek_bar"
+        android:visibility="gone" />
+
+    <com.miyuetech.mimifiles.feature.player.VerticalSeekBarView
+        android:id="@+id/player_seek_right"
+        android:layout_width="44dp"
+        android:layout_height="320dp"
+        android:layout_gravity="end|center_vertical"
+        android:layout_marginEnd="2dp"
+        android:contentDescription="@string/player_seek_bar"
+        android:visibility="gone" />
 
     <!--
       外接显示器提示（M7.14）：视频面已切到副屏时，主屏 PlayerView 的画面区

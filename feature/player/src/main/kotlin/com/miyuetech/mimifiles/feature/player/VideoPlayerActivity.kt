@@ -7,6 +7,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
+import android.graphics.Color
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -144,6 +145,26 @@ class VideoPlayerActivity : AppCompatActivity() {
     @Volatile
     private var audioDecoderName: String? = null
 
+    // ── M7.19：左右竖向进度条 ────────────────────────────────────
+
+    /** 竖条拖动中：此时不让播放时钟把滑块位置改回去。 */
+    private var scrubbingVertically = false
+
+    /** 控制条原本的自动隐藏时长（拖动竖条期间会被临时置 0）。 */
+    private var controllerShowTimeoutMs = 0
+
+    /**
+     * 竖条位置时钟：只在竖条可见时跑（控制条收起就停）。
+     * 控制条自带的时间轴是 Media3 内部在推，我们这层没有别的钩子可用，
+     * 200ms 一次足够跟上肉眼，也远低于 Media3 自己的刷新代价。
+     */
+    private val verticalSeekTicker = object : Runnable {
+        override fun run() {
+            syncVerticalSeek()
+            binding.root.postDelayed(this, VERTICAL_SEEK_TICK_MS)
+        }
+    }
+
     // ── M7.14：外接显示器播放 ────────────────────────────────────
     //
     // 与 VLC-android 同一条技术路线（其 gui/video/DisplayManager.kt）：
@@ -217,6 +238,8 @@ class VideoPlayerActivity : AppCompatActivity() {
         }
         // 把横竖屏按钮与字幕按钮从顶栏搬进控制条（齿轮设置按钮旁边）。详见该方法的长注释。
         moveButtonsBesideSettings()
+        // 控制条自带的全屏黑色遮罩会整体压暗视频（M7.19 用户反馈）。放到最后统一清掉。
+        stripControllerScrim()
         binding.playerInfo.setOnClickListener { showVideoInfo() }
 
         binding.playerView.setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
@@ -236,8 +259,11 @@ class VideoPlayerActivity : AppCompatActivity() {
         binding.playerView.setControllerVisibilityListener(
             PlayerView.ControllerVisibilityListener { visibility ->
                 binding.playerTop.visibility = visibility
+                // 左右竖向进度条同一节奏显隐（M7.19）。理由见 updateVerticalSeekBars。
+                updateVerticalSeekBars(visibility == View.VISIBLE)
             },
         )
+        setupVerticalSeekBars()
 
         updateRotateButton()
         // 外接显示器监听（M7.14）：要在 buildPlayer 之前 —— onResume 里
@@ -334,12 +360,137 @@ class VideoPlayerActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         savePosition()
+        binding.root.removeCallbacks(verticalSeekTicker)
         displayManager?.unregisterDisplayListener(displayListener)
         detachExternalDisplay()
         binding.playerView.player = null
         player?.release()
         player = null
         super.onDestroy()
+    }
+
+    // ── M7.19：控制条遮罩 / 左右竖向进度条 ──────────────────────
+
+    /**
+     * 清掉 Media3 控制条自带的全屏遮罩。
+     *
+     * ## 问题
+     * 点击屏幕唤出控制条时，`exo_controls_background` 会展开成**铺满整个
+     * PlayerView** 的一层 `exo_black_opacity_60`（60% 黑）。用户看到的是
+     * "一按屏幕整个视频就暗下去"，而不是"按钮浮在画面上"。
+     * 底部 `exo_bottom_bar` 自己也有一层底色，加起来就是底部一条更黑的带子。
+     *
+     * ## 做法
+     * 两者都设成透明。**不改 Media3 的默认布局文件、也不换 `controller_layout_id`**：
+     * 复制一份控制条布局意味着以后每次升级 media3 都要重新对齐内部结构，
+     * 而这里只是改两个 View 的背景色，失败了也只是"画面仍旧偏暗"，不会崩。
+     *
+     * `PlayerControlView` 在**构造时**就把 `exo_player_control_view` inflate 进来了
+     * （不是首次显示时才建），所以这里 `findViewById` 一定拿得到；
+     * 与 [moveButtonsBesideSettings] 找齿轮是同一个前提。仍保留 null 检查和日志，
+     * 万一 media3 换了大版本改了 id，日志能直接指出来。
+     */
+    private fun stripControllerScrim() {
+        val scrim = binding.playerView.findViewById<View>(internalId("exo_controls_background"))
+        val bottomBar = binding.playerView.findViewById<View>(internalId("exo_bottom_bar"))
+        if (scrim == null) {
+            MimiLog.w(TAG, "未找到控制条遮罩 exo_controls_background，画面仍会偏暗")
+        } else {
+            scrim.setBackgroundColor(Color.TRANSPARENT)
+        }
+        bottomBar?.setBackgroundColor(Color.TRANSPARENT)
+        MimiLog.i(TAG, "控制条遮罩已清除（scrim=${scrim != null} bottomBar=${bottomBar != null}）")
+    }
+
+    /**
+     * 左右竖向进度条的接线（M7.19）。
+     *
+     * 两条完全等价：左手持、右手持都能用拇指够到屏幕边缘。
+     * 拖动期间只更新 HUD 预览，抬指才 seek —— 与 `PlayerGestures` 的水平快进一致。
+     */
+    private fun setupVerticalSeekBars() {
+        listOf(binding.playerSeekLeft, binding.playerSeekRight).forEach { bar ->
+            bar.onScrubStart = { onVerticalScrubStart() }
+            bar.onScrubMove = { ratio -> onVerticalScrubMove(ratio) }
+            bar.onScrubStop = { ratio -> onVerticalScrubStop(ratio) }
+        }
+        // 记住控制条原本的自动隐藏时长，拖完要还原。
+        // 拖动期间置 0 = 不自动隐藏，否则拖到一半竖条会随控制条一起消失。
+        // 读回值兜个底：万一拿到 0（语义是"永不隐藏"），还原时会把控制条永久钉在屏幕上。
+        controllerShowTimeoutMs = binding.playerView.controllerShowTimeoutMs
+            .takeIf { it > 0 } ?: 5000
+    }
+
+    /**
+     * 竖条显隐。
+     *
+     * ## 为什么必须跟控制条同进同退（不能常驻）
+     * 两条竖条各宽 44dp 且贴在左右边缘，正好压在 `PlayerGestures` 的热区上：
+     * 左半边上下滑 = 亮度、右半边上下滑 = 音量。竖条一旦常驻，边缘这两个最常用的
+     * 手势就永久失效。让它们只在控制条可见时出现，就把"边缘手势"和"拇指调进度"
+     * 按用户意图分开了：想沉浸观看时（控制条收起）边缘滑动手势照旧；
+     * 点一下唤出控件时，拇指就地上下滑 = 调进度。
+     */
+    private fun updateVerticalSeekBars(show: Boolean) {
+        val target = if (show && !isInPictureInPictureMode) View.VISIBLE else View.GONE
+        binding.playerSeekLeft.visibility = target
+        binding.playerSeekRight.visibility = target
+        binding.root.removeCallbacks(verticalSeekTicker)
+        if (target == View.VISIBLE) {
+            syncVerticalSeek()
+            binding.root.postDelayed(verticalSeekTicker, VERTICAL_SEEK_TICK_MS)
+        }
+    }
+
+    /** 把播放位置同步到两条竖条。控制条收起时时钟已停，不产生额外开销。 */
+    private fun syncVerticalSeek() {
+        if (scrubbingVertically) return
+        val exo = player ?: return
+        val duration = exo.duration
+        val ratio = if (duration > 0L) {
+            (exo.currentPosition.toFloat() / duration).coerceIn(0f, 1f)
+        } else {
+            0f
+        }
+        binding.playerSeekLeft.ratio = ratio
+        binding.playerSeekRight.ratio = ratio
+    }
+
+    private fun onVerticalScrubStart() {
+        scrubbingVertically = true
+        // 0 = 不自动隐藏（Media3 语义）。不这样做，5 秒后控制条连同竖条一起消失，
+        // 手指还在拖、控件却没了。
+        binding.playerView.controllerShowTimeoutMs = 0
+        binding.playerView.showController()
+    }
+
+    private fun onVerticalScrubMove(ratio: Float) {
+        val exo = player ?: return
+        val duration = exo.duration.takeIf { it > 0L } ?: return
+        // 两条同步：拖左边时右边也要跟着动，否则松手前看到的是两个不同位置。
+        binding.playerSeekLeft.ratio = ratio
+        binding.playerSeekRight.ratio = ratio
+        val target = (duration * ratio).toLong()
+        binding.playerHud.text = getString(
+            R.string.player_scrub_preview,
+            Formatters.duration(target),
+            Formatters.duration(duration),
+        )
+        binding.playerHud.visibility = View.VISIBLE
+        binding.playerHud.removeCallbacks(hudHideRunnable)
+    }
+
+    private fun onVerticalScrubStop(ratio: Float) {
+        scrubbingVertically = false
+        val exo = player
+        val duration = exo?.duration?.takeIf { it > 0L }
+        if (exo != null && duration != null) {
+            exo.seekTo((duration * ratio).toLong())
+        }
+        binding.playerView.controllerShowTimeoutMs = controllerShowTimeoutMs
+        // 抬指后留一小会儿让人看清落点，再收 HUD。
+        binding.playerHud.removeCallbacks(hudHideRunnable)
+        binding.playerHud.postDelayed(hudHideRunnable, 800L)
     }
 
     // ── 横竖屏按钮的位置 ────────────────────────────────────────
@@ -881,6 +1032,8 @@ class VideoPlayerActivity : AppCompatActivity() {
         // 画中画里不该有控制条与顶部条（它们会占掉一半的缩略画面）。
         binding.playerTop.visibility = if (isInPictureInPictureMode) View.GONE else View.VISIBLE
         binding.playerView.useController = !isInPictureInPictureMode
+        // 竖条同进退（M7.19）：小窗里放这两条会把画面切掉三分之一。
+        updateVerticalSeekBars(!isInPictureInPictureMode)
         // 渲染旋转兜底若在，进 PiP 前撤掉：小窗按窗口几何重排，旋转 90° 的内容
         // 在小窗里是侧躺的（M7.10）。
         if (isInPictureInPictureMode) clearRenderRotation()
@@ -1063,12 +1216,21 @@ class VideoPlayerActivity : AppCompatActivity() {
         return Locale.forLanguageTag(lang).displayName.ifBlank { lang }
     }
 
-    /** 复用续播提示那行 HUD：字幕切换给一行反馈，不用打断式 toast。 */
+    /**
+     * 复用续播提示那行 HUD：字幕切换给一行反馈，不用打断式 toast。
+     *
+     * 用**可取消**的 [hudHideRunnable] 而不是每次 `postDelayed` 一个新 lambda：
+     * M7.19 起竖条拖动要连续刷新同一行 HUD，旧写法会堆起一串延时任务，
+     * 表现是"松手后 HUD 又被上一次的超时提前收走"。
+     */
     private fun showHud(text: CharSequence) {
+        binding.playerHud.removeCallbacks(hudHideRunnable)
         binding.playerHud.text = text
         binding.playerHud.visibility = View.VISIBLE
-        binding.playerHud.postDelayed({ binding.playerHud.visibility = View.GONE }, 2500L)
+        binding.playerHud.postDelayed(hudHideRunnable, 2500L)
     }
+
+    private val hudHideRunnable = Runnable { binding.playerHud.visibility = View.GONE }
 
     // ── M7.14：外接显示器（副屏画面 + 主屏控制）───────────────────
     //
@@ -1820,5 +1982,8 @@ class VideoPlayerActivity : AppCompatActivity() {
 
     private companion object {
         const val TAG = "MimiPlayer"
+
+        /** 竖条位置刷新间隔：200ms 肉眼已连续，再快只是白烧 CPU。 */
+        const val VERTICAL_SEEK_TICK_MS = 200L
     }
 }
