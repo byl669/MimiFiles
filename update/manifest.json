@@ -1,13 +1,13 @@
 {
-  "versionCode": 33,
-  "versionName": "0.7.21-M7.19",
+  "versionCode": 34,
+  "versionName": "0.7.22-M7.20",
   "publishedAt": "2026-10-29",
-  "notes": "M7.19: 播放画面不再被控制条压暗（去掉全屏半透明黑遮罩，顶栏改渐变）；新增左右竖向进度条，单手握持平板时拇指在屏幕边缘上下滑即可调进度，下方横向进度条保留",
+  "notes": "M7.20: 播放控制条按钮加描边——去掉全屏遮罩后，白色图标在雪景/白墙/文档录屏这类亮画面上几乎看不见，现在给播放暂停、快退15/快进30、上一个/下一个都加了一圈黑边，时间文字也加了投影。暗画面上描边融进背景，看不出多余装饰",
   "files": [
     {
       "abi": "arm64-v8a",
-      "url": "https://github.com/byl669/MimiFiles/releases/download/v0.7.21-M7.19/mimifiles-0.7.21-M7.19-arm64.apk",
-      "sha256": "7fdd533d76fb47d2f689b60207346bc932d24f2a9876fb68a79af5f01a4ea57b",
+      "url": "https://github.com/byl669/MimiFiles/releases/download/v0.7.22-M7.20/mimifiles-0.7.22-M7.20-arm64.apk",
+      "sha256": "23326185e54ad52b57ad4db3626eaeb12baf037a8b2b5c98f50f258ac058784a",
       "size": 14207905
     }
   ],
