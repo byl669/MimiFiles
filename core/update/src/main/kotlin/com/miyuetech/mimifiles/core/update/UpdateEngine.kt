@@ -59,9 +59,11 @@ class UpdateEngine private constructor(
      *
      * ## 为什么是列表（PiliPlus 项目的实测教训）
      * 单一镜像单点故障：raw 国内直连常被墙，jsDelivr 对分支引用有小时级缓存
-     * 且 purge 不保证生效。依次尝试、以「清单能解析」为成功判据，
-     * 任何一个镜像可达就拿到结果——这是把"更新检查偶尔失败"变成
-     * "几乎不失败"的唯一便宜手段。
+     * 且 purge 不保证生效。任一镜像可达就拿到结果——这是把"更新检查偶尔失败"
+     * 变成"几乎不失败"的唯一便宜手段。
+     *
+     * ⚠️ 但"任一可用"不等于"首个可用就用"：各镜像的缓存互相独立，陈旧的那一个
+     * 会安静地给出旧版本号。取值规则见 [check] 里的长注释（取 max）。
      */
     private val manifestUrls: MutableList<String> =
         initialManifestUrls
@@ -129,29 +131,56 @@ class UpdateEngine private constructor(
         MimiLog.i(TAG, "检查更新：镜像 ${manifestUrls.size} 个，首选 $activeManifestUrl")
         scope.launch {
             try {
-                // 多镜像依次尝试：任一镜像**成功解析出清单**即用之。
+                // 多镜像取值：**取所有镜像里 versionCode 最大的那一份**。
+                //
                 // 成功判据是"parse 通过"而不是"HTTP 200"——镜像被墙时可能返回
                 // 错误页/空体，那些都必须当成"这个镜像失败"落到下一个。
+                //
+                // ## 为什么不"首个成功就用"（M7.21 修正）
+                // 镜像过期只会让版本号**偏小**，永远不会偏大，所以取 max 恒安全。
+                // 与之相对，"首个成功就用"有一个致命的失败方向：
+                // `fastly.jsdelivr.net` 与 `cdn.jsdelivr.net` 是两套独立缓存，purge
+                // 只清后者；前者能滞留旧清单 12 小时（s-maxage=43200 实测）。一旦
+                // 前两个镜像瞬时失败而落到它，客户端拿着旧清单得出"已是最新版本"
+                // ——一个看起来完全正常的错误答案，不报错、不留痕，用户被明确
+                // 告知"没有新版"而新版其实已发布。这种失败模式必须从协议层面堵掉。
+                //
+                // ## 代价控制
+                // 只要任一镜像已经给出"有新版本"，立刻收手：其余镜像最多同版本或
+                // 更旧，多问一次只是白等一次超时。只有当结论是"已是最新"时才把
+                // 剩下的镜像都问一遍——差异恰恰只可能出现在这个方向上。
+                val installed = installedVersion.versionCode
                 var lastError: UpdateException? = null
-                var manifest: UpdateManifest? = null
+                val candidates = ArrayList<MirrorManifest>(manifestUrls.size)
                 for (url in manifestUrls) {
-                    try {
-                        val text = UpdateTransport.fetchManifestText(url)
-                        manifest = UpdateManifestCodec.parse(text)
-                        activeManifestUrl = url
-                        break
+                    val fetched = try {
+                        UpdateManifestCodec.parse(UpdateTransport.fetchManifestText(url))
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: UpdateException) {
                         MimiLog.w(TAG, "镜像失败，换下一个：$url（${e.message}）")
                         lastError = e
+                        null
                     } catch (t: Throwable) {
                         MimiLog.w(TAG, "镜像失败，换下一个：$url（${t.message}）")
                         lastError = UpdateException("清单拉取失败：${t.message ?: t.javaClass.simpleName}", t)
+                        null
                     }
+                    if (fetched == null) continue
+                    val bestSoFar = ManifestMirrors.newest(candidates)
+                    if (bestSoFar != null && fetched.versionCode > bestSoFar.manifest.versionCode) {
+                        // 前一个镜像给的是旧清单——正是那个"看起来正常的错误答案"的现场。
+                        MimiLog.w(
+                            TAG,
+                            "镜像 $url 的清单更新（${bestSoFar.manifest.versionCode} → " +
+                                "${fetched.versionCode}），${bestSoFar.url} 的内容是陈旧的",
+                        )
+                    }
+                    candidates += MirrorManifest(url, fetched)
+                    if (fetched.versionCode > installed) break
                 }
-                val installed = installedVersion.versionCode
-                if (manifest == null) {
+                val chosen = ManifestMirrors.newest(candidates)
+                if (chosen == null) {
                     // 全部镜像都失败：把**最后一个**镜像的具体原因报出去（DNS 失败、
                     // 超时……），前面只垫一句"共试了几个"。合并成一条，界面一行放得下。
                     throw UpdateException(
@@ -159,6 +188,8 @@ class UpdateEngine private constructor(
                         lastError,
                     )
                 }
+                val manifest = chosen.manifest
+                activeManifestUrl = chosen.url
                 when (
                     val decision = UpdatePlanner.decide(
                         manifest = manifest,

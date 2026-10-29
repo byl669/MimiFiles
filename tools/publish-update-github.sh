@@ -25,7 +25,11 @@
 #      让 tag 快照里同时包含与之匹配的清单
 #   ⑤ 建 Release（tag=v<versionName>）并上传 APK 资产
 #   ⑥ purge jsDelivr 缓存
-#   ⑦ 自检：jsDelivr 清单 200 且 versionCode 是新的；Release 资产可达
+#   ⑦ 自检：cdn.jsdelivr 清单 200 且 versionCode 是新的（硬闸门）；
+#      fastly.jsdelivr / raw 各查一遍——**只报 WARN**。fastly 是独立缓存命名
+#      空间，purge 清不到它，旧清单可滞留 12 小时；客户端已改为取多镜像
+#      最大值，所以这种滞后不再会误导用户，但每次发布都要能看到它。
+#      Release 资产必须可达（硬闸门）。
 #
 # 令牌:
 #   环境变量 GITHUB_TOKEN，缺省读 ~/WorkBuddy/keys/github-pat.txt。
@@ -40,6 +44,8 @@ REPO="${GITHUB_REPO:-byl669/MimiFiles}"
 BRANCH="${GITHUB_BRANCH:-main}"
 MANIFEST_IN_REPO="update/manifest.json"
 JSDELIVR="https://cdn.jsdelivr.net/gh/${REPO}@${BRANCH}/${MANIFEST_IN_REPO}"
+FASTLY="https://fastly.jsdelivr.net/gh/${REPO}@${BRANCH}/${MANIFEST_IN_REPO}"
+RAW="https://raw.githubusercontent.com/${REPO}/${BRANCH}/${MANIFEST_IN_REPO}"
 PURGE_URL="https://purge.jsdelivr.net/gh/${REPO}@${BRANCH}/${MANIFEST_IN_REPO}"
 
 PY="$(command -v python3 || true)"
@@ -194,21 +200,47 @@ echo "== jsDelivr purge → HTTP $PURGE_CODE"
 
 # ── 自检 ─────────────────────────────────────────────────────────────────────
 sleep 3
-BODY="$(curl -sS --noproxy '*' --connect-timeout 15 --max-time 60 -H 'Cache-Control: no-cache' "$JSDELIVR" -w '\nHTTP=%{http_code}')"
-CODE="$(printf '%s' "$BODY" | grep -o 'HTTP=[0-9]*' | tail -1 | cut -d= -f2)"
-[ "$CODE" = "200" ] || { echo "PUBLISH_FAIL jsDelivr 清单 HTTP=$CODE"; exit 1; }
-# 注意：BODY 尾行是 HTTP=code，先剥掉再喂 JSON 解析；解析失败按"旧清单"处理
-MANIFEST_ONLY="$(printf '%s' "$BODY" | sed '$d')"
-REMOTE_CODE="$(printf '%s' "$MANIFEST_ONLY" | "$PY" -c 'import json,sys
+# 读某个镜像上的 versionCode；拿不到 / 解析失败都输出空串，由调用方判断。
+probe_manifest() { # $1=url
+  local body code only
+  body="$(curl -sS --noproxy '*' --connect-timeout 15 --max-time 60 \
+    -H 'Cache-Control: no-cache' "$1" -w '\nHTTP=%{http_code}' 2>/dev/null || true)"
+  # `|| true`：镜像连不上时 grep 找不到 HTTP= 会返回 1，
+  # 在 `set -e -o pipefail` 下会让这句赋值直接杀脚本——而这里要的是"记 WARN"。
+  code="$(printf '%s' "$body" | grep -o 'HTTP=[0-9]*' | tail -1 | cut -d= -f2 || true)"
+  if [ "$code" != "200" ]; then printf ''; return 0; fi
+  # 尾行是 HTTP=code，先剥掉再喂 JSON 解析
+  only="$(printf '%s' "$body" | sed '$d')"
+  printf '%s' "$only" | "$PY" -c 'import json,sys
 try:
     print(json.load(sys.stdin).get("versionCode", ""))
 except Exception:
-    print("")' 2>/dev/null || true)"
+    print("")' 2>/dev/null || true
+}
+
+# cdn.jsdelivr 是硬闸门：它是国内用户的主路径，必须是新版。
+REMOTE_CODE="$(probe_manifest "$JSDELIVR")"
 if [ "$REMOTE_CODE" != "$VERSION_CODE" ]; then
   echo "PUBLISH_FAIL jsDelivr 清单不是新版（读到的 versionCode=‘${REMOTE_CODE:-空}’，期望 $VERSION_CODE）"
   exit 1
 fi
-echo "== 自检 jsDelivr 清单 ✓ versionCode=$REMOTE_CODE"
+echo "== 自检 cdn.jsdelivr 清单 ✓ versionCode=$REMOTE_CODE"
+
+# fastly 与 cdn **是两套独立缓存**，purge.jsdelivr.net 只清 cdn 那一套；
+# fastly 的旧清单能滞留 12 小时（s-maxage=43200，实测）。这是已知偏差、
+# 脚本侧无法消除，所以记 WARN 而不是 FAIL —— 否则每次发布都会被这条
+# 必然命中的告警卡死，闸门就失去意义了。客户端已改为取多镜像最大值，
+# 陈旧镜像不会再被误当成"已是最新"。
+for pair in "fastly|$FASTLY" "raw|$RAW"; do
+  name="${pair%%|*}"; url="${pair#*|}"
+  code="$(probe_manifest "$url")"
+  if [ "$code" = "$VERSION_CODE" ]; then
+    echo "== 自检 ${name} 清单 ✓ versionCode=$code"
+  else
+    echo "== WARN ${name} 清单仍不是新版（versionCode=‘${code:-空}’/不可达）。已知缓存滞后；客户端取多镜像最大值，不会被误导。"
+  fi
+done
+
 for f in "${APK_ARGS[@]}"; do
   H="$(curl -sIL --noproxy '*' --connect-timeout 15 --max-time 60 \
     "https://github.com/${REPO}/releases/download/${TAG}/$(basename "$f")" -o /dev/null -w '%{http_code}')"
