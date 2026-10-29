@@ -6,10 +6,14 @@
 #   bash tools/publish-update-github.sh "<更新说明>" dist/mimifiles-x.y.z-arm64.apk
 #
 # 架构（GitHub 与 CDN 分流）:
-#   清单（小文件）  update/manifest.json 提交进仓库，
-#                   客户端经 jsDelivr CDN 拉取:
-#                     https://cdn.jsdelivr.net/gh/<REPO>@main/update/manifest.json
-#                   jsDelivr 对文件内容有小时级缓存，所以发布末尾会主动 purge。
+#   清单（小文件）  update/manifest.json 提交进仓库，**同时**作为 Release 资产
+#                   上传一份同名文件。客户端的镜像顺序是:
+#                     1) https://github.com/<REPO>/releases/latest/download/manifest.json
+#                        —— latest 指针随新 Release 立即切换，无分支缓存
+#                     2) raw.githubusercontent.com（内容最实时，国内常被墙）
+#                     3) cdn / gcore / testingcf / fastly .jsdelivr.net
+#                        —— jsDelivr 对 `@main` 的版本解析能滞后 12 小时，
+#                           所以只作兜底，客户端取所有镜像里的最大 versionCode
 #   安装包（大文件）挂 GitHub Release，**不进仓库**；清单里的 url 字段是
 #                   Release 资产的绝对地址:
 #                     https://github.com/<REPO>/releases/download/<tag>/<apk>
@@ -23,16 +27,22 @@
 #   ③ 生成新清单（含 sha256 / size / 绝对下载地址）
 #   ④ 提交 update/manifest.json 并推送 main —— **先推清单再建 Release**，
 #      让 tag 快照里同时包含与之匹配的清单
-#   ⑤ 建 Release（tag=v<versionName>）并上传 APK 资产。同版本号若已存在，
-#      仅当已发布资产的 sha256 digest 与本地文件**完全一致**时才续跑
-#      （跳过建库与上传，只补跑后续步骤）；不一致则报错要求换版本号，
+#   ⑤ 建 Release（tag=v<versionName>）并上传资产：APK + **一份同内容的
+#      manifest.json**。后者是客户端首选镜像 ——
+#        https://github.com/<REPO>/releases/latest/download/manifest.json
+#      latest 指针随新 Release 立即切换，不经过任何分支缓存，装上就能发现更新。
+#      同版本号若已存在，仅当已发布资产的 sha256 digest 与本地文件**完全一致**
+#      时才续跑（跳过建库与上传，只补跑后续步骤）；不一致则报错要求换版本号，
 #      避免覆盖已发布的历史版本。
 #   ⑥ purge jsDelivr 缓存
-#   ⑦ 自检：raw 清单必须是新版（硬闸门，证明清单真的推上去了）；
-#      四个 jsDelivr 服务商（cdn/gcore/testingcf/fastly）逐个探测并退避重试，
-#      一个都不新鲜时末行输出 PUBLISH_DEGRADED 而不是 PUBLISH_OK —— 各服务商
-#      缓存互相独立（实测同一次 purge 后 cdn=33 而 gcore=35）。
-#      Release 资产必须可达（硬闸门）。
+#   ⑦ 自检（三类判据，不可混用）：
+#      ① 仓库清单：GitHub API 直读，无缓存层 —— 硬闸门，证明清单真推上去了；
+#      ①b Release latest 清单：客户端首选地址，必须**立即**是新版 —— 硬闸门；
+#      ② CDN 新鲜度：四个 jsDelivr 服务商（cdn/gcore/testingcf/fastly）逐个
+#         探测并退避重试，一个都不新鲜时末行输出 PUBLISH_DEGRADED 而不是
+#         PUBLISH_OK —— 各服务商缓存互相独立（实测同一次 purge 后 cdn=33 而
+#         gcore=35）。raw 只报 INFO，它有约 5 分钟边缘缓存。
+#      Release 上的 APK 资产必须可达（硬闸门）。
 #
 # 令牌:
 #   环境变量 GITHUB_TOKEN，缺省读 ~/WorkBuddy/keys/github-pat.txt。
@@ -54,6 +64,9 @@ RAW="https://raw.githubusercontent.com/${REPO}/${BRANCH}/${MANIFEST_IN_REPO}"
 # 直读仓库内容的 API：**没有 CDN 缓存层**，是"清单有没有真的推上去"的权威判据。
 # raw.githubusercontent.com 带约 5 分钟边缘缓存，刚 push 完常仍返回旧文件。
 MANIFEST_API="https://api.github.com/repos/${REPO}/contents/${MANIFEST_IN_REPO}?ref=${BRANCH}"
+# 清单的"无缓存"镜像：挂在 Release 上的同名资产，latest 指针随新 Release 立即切换。
+# 这是客户端的首选地址（jsDelivr 对 @main 的版本解析能滞后 12 小时）。
+RELEASE_LATEST="https://github.com/${REPO}/releases/latest/download/manifest.json"
 PURGE_URL="https://purge.jsdelivr.net/gh/${REPO}@${BRANCH}/${MANIFEST_IN_REPO}"
 
 PY="$(command -v python3 || true)"
@@ -258,6 +271,23 @@ for f in "${APK_ARGS[@]}"; do
   esac
 done
 
+# 清单也挂一份到同一个 Release。这是客户端的**首选镜像**：
+#   https://github.com/<REPO>/releases/latest/download/manifest.json
+# 好处是 latest 指针随新 Release 立刻切换，完全绕开 jsDelivr 对分支引用
+# 的小时级缓存（实测发布 0.7.24 后 6 分钟，四个节点仍停在 33/35）。
+# 续跑时不跳过这条：422 天然幂等，且万一上次是"APK 传完、清单没传上"，
+# 这一条正好补齐。
+UP="$(curl -sS --noproxy '*' --connect-timeout 15 --max-time 120 \
+  -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/octet-stream" \
+  --data-binary @"$TMP_MANIFEST" \
+  "https://uploads.github.com/repos/${REPO}/releases/${REL_ID}/assets?name=manifest.json" \
+  -o /dev/null -w '%{http_code}')"
+case "$UP" in
+  201) echo "== 已上传 manifest.json（Release latest 镜像）" ;;
+  422) echo "== 资产 manifest.json 已存在，跳过上传" ;;
+  *) echo "PUBLISH_FAIL 上传 manifest.json HTTP=$UP"; exit 1 ;;
+esac
+
 # ── purge jsDelivr ───────────────────────────────────────────────────────────
 sleep 2
 PURGE_CODE="$(curl -sS --noproxy '*' --connect-timeout 15 --max-time 60 \
@@ -266,13 +296,15 @@ echo "== jsDelivr purge → HTTP $PURGE_CODE"
 
 # ── 自检 ─────────────────────────────────────────────────────────────────────
 #
-# 这里的"新鲜度"分两类，判据必须分开，否则会互相误导：
+# 这里的"新鲜度"分三类，判据必须分开，否则会互相误导：
 #
 #   ① 清单有没有**真的提交到分支** —— 用 GitHub API 直读（无缓存层）。
 #      硬闸门。push 失败、tag 指错，只有它会暴露。
 #      ⚠️ 不能用 raw.githubusercontent.com 做这件事：它带约 5 分钟边缘缓存，
-#      刚推完常常仍返回旧文件。本轮发布 0.7.24 时就被它误判过一次
+#      刚推完常常仍返回旧文件。发布 0.7.24 时就被它误判过一次
 #      （仓库里已是 36，raw 还发 35）。
+#   ①b Release latest 上的清单 —— 客户端的**首选地址**，必须立刻生效。
+#      硬闸门：它不可用意味着用户更新不了，而这条恰恰是唯一没有缓存层的路。
 #   ② CDN 节点有没有跟上 —— jsDelivr 的 cdn./gcore./testingcf./fastly. 是
 #      **不同 CDN 服务商、不同缓存命名空间**，同一次 purge 后可能停在不同代际
 #      （2026-10-29 实测：cdn=33、fastly=33、gcore=35、testingcf=35）。
@@ -281,9 +313,9 @@ echo "== jsDelivr purge → HTTP $PURGE_CODE"
 #      只会留下半完成状态。
 sleep 3
 # 读某个 URL 上的 versionCode；拿不到 / 解析失败都输出空串，由调用方判断。
-probe_manifest() { # $1=url
+probe_manifest() { # $1=url  —— -L：Release 资产会 302 到 objects.githubusercontent.com
   local body code only
-  body="$(curl -sS --noproxy '*' --connect-timeout 15 --max-time 60 \
+  body="$(curl -sS -L --noproxy '*' --connect-timeout 15 --max-time 60 \
     -H 'Cache-Control: no-cache' "$1" -w '\nHTTP=%{http_code}' 2>/dev/null || true)"
   # `|| true`：镜像连不上时 grep 找不到 HTTP= 会返回 1，
   # 在 `set -e -o pipefail` 下会让这句赋值直接杀脚本——而这里要的是"记 WARN"。
@@ -312,6 +344,22 @@ if [ "$API_CODE" != "$VERSION_CODE" ]; then
   exit 1
 fi
 echo "== 自检 仓库清单（API 直读，无缓存）✓ versionCode=${API_CODE}"
+
+# ①b 客户端首选镜像：Release 的 latest 资产。这条没有分支缓存层，是
+#    "用户打开 App 就能看到更新"的直接判据，所以和 ① 一样是硬闸门。
+#    latest 指针切换有 1~3 秒延迟（实测建完 3 秒即读到新版），给几轮短重试。
+REL_OK=""
+REL_CODE=""
+for attempt in 1 2 3 4 5; do
+  REL_CODE="$(probe_manifest "$RELEASE_LATEST")"
+  if [ "$REL_CODE" = "$VERSION_CODE" ]; then REL_OK=1; break; fi
+  if [ "$attempt" -lt 5 ]; then sleep 3; fi
+done
+if [ -z "$REL_OK" ]; then
+  echo "PUBLISH_FAIL Release latest 上的 manifest.json 不是新版（versionCode=‘${REL_CODE:-不可达}’，期望 ${VERSION_CODE}）——清单资产没传上去？这是客户端首选地址。"
+  exit 1
+fi
+echo "== 自检 Release latest 清单（客户端首选，无缓存）✓ versionCode=${REL_CODE}"
 
 # ② CDN 新鲜度：轮询到有一个节点返回新版为止，最多约 60 秒
 CDN_NAMES=(cdn gcore testingcf fastly)
@@ -371,4 +419,5 @@ if [ -z "$FRESH_CDN" ]; then
 else
   echo "PUBLISH_OK"
 fi
-echo "PUBLIC_MANIFEST=$JSDELIVR"
+echo "PUBLIC_MANIFEST=$RELEASE_LATEST"
+echo "PUBLIC_MANIFEST_FALLBACK=$JSDELIVR"

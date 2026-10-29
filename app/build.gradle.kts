@@ -78,22 +78,24 @@ android {
             // 清单是小文件，提交在仓库 update/manifest.json；APK 大文件不进仓库，
             // 挂 GitHub Release，清单里的 url 字段是 Release 资产的绝对地址。
             //
-            // ## 为什么是镜像列表而不是单一地址（PiliPlus 项目实测教训）
-            // raw.githubusercontent.com 内容最实时但国内直连常被墙；jsDelivr CDN
-            // 可达性最好但对 @main 有小时级缓存、purge 也不保证生效。
+            // ## 为什么首选项是 Release 资产而不是 jsDelivr（M7.23，2026-10-29）
+            // 发布脚本会同时把 manifest.json 传一份到 Release 资产，
+            // `releases/latest/download/manifest.json` 因此**没有分支缓存**：
+            // 新 Release 一建好就指向新清单（实测建完 3 秒即读到新版）。
+            // 对比之下 jsDelivr 对 `@main` 的版本解析能滞后 12 小时，实测发布
+            // 0.7.24 后 6 分钟内 cdn=33、fastly=33、gcore=35、testingcf=35，
+            // 四个节点全都没拿到 36——国内用户（raw 被墙）那段时间根本发现不了
+            // 更新。github.com 在国内一般可直连，所以这条排第一。
             //
-            // ## 为什么要列三个 jsDelivr 服务商（M7.22，2026-10-29 实测）
-            // jsDelivr 的 `cdn.` / `fastly.` / `gcore.` / `testingcf.` 是**不同 CDN
-            // 服务商、不同缓存命名空间**，同一次 purge 之后它们可能停在不同的代际：
-            // 发布 0.7.23 之后同一分钟内实测 cdn=33、fastly=33、gcore=35、
-            // testingcf=35。只列 cdn+fastly，国内用户（raw 被墙）就会全部拿到
-            // 旧清单，被明确告知"已是最新"。多列两个服务商把"恰好都陈旧"的概率
-            // 压下去，配合客户端取最大版本号的规则才算真的堵住。
-            // 顺序按"常见可达性 + 实测新鲜度"排，客户端只在新版未找到时才继续问。
+            // ## 为什么是镜像列表而不是单一地址（PiliPlus 项目实测教训）
+            // 单点故障：raw 国内常被墙；jsDelivr 可达性好但对分支引用有小时级
+            // 缓存且 purge 不保证生效。任一镜像可达就拿到结果——配合
+            // UpdateEngine"取所有镜像里最高的 versionCode"，陈旧节点不会误导。
             buildConfigField(
                 "java.util.List<String>",
                 "UPDATE_MANIFEST_URLS",
                 "java.util.Arrays.asList(" +
+                    "\"https://github.com/byl669/MimiFiles/releases/latest/download/manifest.json\", " +
                     "\"https://raw.githubusercontent.com/byl669/MimiFiles/main/update/manifest.json\", " +
                     "\"https://cdn.jsdelivr.net/gh/byl669/MimiFiles@main/update/manifest.json\", " +
                     "\"https://gcore.jsdelivr.net/gh/byl669/MimiFiles@main/update/manifest.json\", " +
