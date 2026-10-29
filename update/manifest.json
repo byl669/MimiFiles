@@ -1,14 +1,14 @@
 {
-  "versionCode": 37,
-  "versionName": "0.7.25-M7.23",
-  "publishedAt": "2026-10-29",
-  "notes": "M7.23 更新\n\n· 更新检查首选「Release 直发清单」，发布后立刻可见，不再等 CDN 缓存过期\n· 修复国内网络下「明明有新版本却提示已是最新」的问题\n· 检查更新会同时比对 6 个镜像，取其中最新的版本号",
+  "versionCode": 38,
+  "versionName": "0.7.26-M7.24",
+  "publishedAt": "2026-10-30",
+  "notes": "M7.24：播放页可直接删片（删完按顺序接着播下一个，没有就退出），退回上级目录时焦点落在刚离开的文件夹上",
   "files": [
     {
       "abi": "arm64-v8a",
-      "url": "https://github.com/byl669/MimiFiles/releases/download/v0.7.25-M7.23/mimifiles-0.7.25-M7.23-arm64.apk",
-      "sha256": "6c4d33702d1d33ade45b7484bec0cade36a6bd15dbaf2afbde4373c9dd9cd5c6",
-      "size": 14207905
+      "url": "https://github.com/byl669/MimiFiles/releases/download/v0.7.26-M7.24/mimifiles-0.7.26-M7.24-arm64.apk",
+      "sha256": "fbd3aafec34c5a4db3f0b58411b352df9462df142b6efdeca975b40128c050dc",
+      "size": 14212325
     }
   ],
   "minSupported": 0
