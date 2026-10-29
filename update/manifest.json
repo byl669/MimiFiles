@@ -1,14 +1,14 @@
 {
-  "versionCode": 36,
-  "versionName": "0.7.24-M7.22",
+  "versionCode": 37,
+  "versionName": "0.7.25-M7.23",
   "publishedAt": "2026-10-29",
-  "notes": "M7.22: 继续加固更新检查——新增两个独立的 CDN 服务商节点（gcore / testingcf），配合「取所有镜像里最新版本号」的规则，即使个别节点还在缓存旧清单，也不会再出现「新版已发布却提示已是最新」的情况。此版本无界面变化",
+  "notes": "M7.23 更新\n\n· 更新检查首选「Release 直发清单」，发布后立刻可见，不再等 CDN 缓存过期\n· 修复国内网络下「明明有新版本却提示已是最新」的问题\n· 检查更新会同时比对 6 个镜像，取其中最新的版本号",
   "files": [
     {
       "abi": "arm64-v8a",
-      "url": "https://github.com/byl669/MimiFiles/releases/download/v0.7.24-M7.22/mimifiles-0.7.24-M7.22-arm64.apk",
-      "sha256": "53b063898587920cafc3339ce7835e5f8a5b057421fcdad249576dec228c7c49",
-      "size": 14207901
+      "url": "https://github.com/byl669/MimiFiles/releases/download/v0.7.25-M7.23/mimifiles-0.7.25-M7.23-arm64.apk",
+      "sha256": "6c4d33702d1d33ade45b7484bec0cade36a6bd15dbaf2afbde4373c9dd9cd5c6",
+      "size": 14207905
     }
   ],
   "minSupported": 0
