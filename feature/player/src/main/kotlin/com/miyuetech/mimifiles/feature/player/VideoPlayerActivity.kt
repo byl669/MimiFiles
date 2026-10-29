@@ -261,6 +261,12 @@ class VideoPlayerActivity : AppCompatActivity() {
                 binding.playerTop.visibility = visibility
                 // 左右竖向进度条同一节奏显隐（M7.19）。理由见 updateVerticalSeekBars。
                 updateVerticalSeekBars(visibility == View.VISIBLE)
+                // 控制条重新出现时补一次图标描边（M7.20）—— 收起期间状态可能变过。
+                // 必须 post 到下一帧：在 Media3 的显隐回调里同步 setImageDrawable
+                // 会 requestLayout，把正在跑的显示动画打断（实测控制条再也不出现）。
+                if (visibility == View.VISIBLE) {
+                    binding.root.post { applyIconOutline() }
+                }
             },
         )
         setupVerticalSeekBars()
@@ -400,6 +406,59 @@ class VideoPlayerActivity : AppCompatActivity() {
         }
         bottomBar?.setBackgroundColor(Color.TRANSPARENT)
         MimiLog.i(TAG, "控制条遮罩已清除（scrim=${scrim != null} bottomBar=${bottomBar != null}）")
+        // 遮罩没了，白色图标在高亮画面上就没了衬托，靠描边立住（M7.20）。
+        applyIconOutline()
+    }
+
+    // ── M7.20：控制条图标的描边 ────────────────────────────────
+
+    /**
+     * 给控制条的白色图标描一圈黑边，并给时间文字加投影。
+     *
+     * ## 为什么是"事件驱动"而不是逐帧检查
+     * 第一版用了 `OnPreDrawListener` 每帧补描边，结果**控制条再也唤不出来**：
+     * `setImageDrawable` 会 `requestLayout()`，而 Media3 又会在 `onLayout` 里
+     * 重新 `setImageResource` 换回原图标 → 下一帧再包 → 无限循环，
+     * UI 线程被 invalidate 风暴占满，点击事件根本轮不到处理。
+     *
+     * 所以改成只在**图标真的可能变**的时机重包一次：控制条显示、播放/暂停切换、
+     * 循环/随机/字幕设置变化。这些覆盖了 Media3 全部换图入口，且都是主线程回调，
+     * 不会有重入问题。幂等仍由 [PlayerIconOutline.outlineIcon] 的 tag 判断兜住。
+     */
+    private fun applyIconOutline() {
+        // 中央控件（上一个/快退15/播放暂停/快进30/下一个）与右下角一排
+        // （齿轮、全屏、以及我们搬进来的横竖屏/字幕）都在内。
+        val targets = listOf(
+            internalId("exo_center_controls"),
+            internalId("exo_basic_controls"),
+        ).mapNotNull { binding.playerView.findViewById<ViewGroup>(it) }
+
+        targets.forEach { group ->
+            for (i in 0 until group.childCount) {
+                when (val child = group.getChildAt(i)) {
+                    // ImageButton（上一个 / 播放暂停 / 下一个 / 齿轮 / 全屏…）
+                    is android.widget.ImageView -> PlayerIconOutline.outlineIcon(child)
+                    // Button（快退 15 秒 / 快进 30 秒）：图标在 compound drawable 上，
+                    // 只认 ImageView 会把这两个整整齐齐漏掉。
+                    is TextView -> {
+                        // 快退/快进把图标画在 background 上，样式与其余按钮完全不同。
+                        PlayerIconOutline.outlineBackgroundIcon(child)
+                        PlayerIconOutline.outlineCompoundIcon(child)
+                        PlayerIconOutline.shadowText(child)
+                    }
+                    else -> Unit
+                }
+            }
+        }
+        // 自己那两颗横竖屏/字幕：无论搬没搬进控制条，都按 binding 直接处理。
+        PlayerIconOutline.outlineIcon(binding.playerRotate)
+        PlayerIconOutline.outlineIcon(binding.playerSubtitle)
+
+        // 时间文字：底栏底色去掉后，白字在高亮画面上同样会糊。
+        binding.playerView.findViewById<TextView>(internalId("exo_position"))
+            ?.let(PlayerIconOutline::shadowText)
+        binding.playerView.findViewById<TextView>(internalId("exo_duration"))
+            ?.let(PlayerIconOutline::shadowText)
     }
 
     /**
@@ -1523,6 +1582,31 @@ class VideoPlayerActivity : AppCompatActivity() {
 
                 override fun onVideoSizeChanged(videoSize: VideoSize) {
                     player?.let { presentation?.syncVideoSize(it, videoSize) }
+                }
+
+                // 下面四个回调是 Media3 **换控制条图标**的全部入口（播放/暂停图标、
+                // 循环/随机、字幕开关）。每次变化后重包一次描边（M7.20）。
+                // 不做逐帧检查的理由见 applyIconOutline 的注释 —— 那会死循环。
+                override fun onIsPlayingChanged(isPlaying: Boolean) {
+                    // 播放/暂停图标是 Media3 换得最勤的一个（updatePlayPauseButton 会在
+                    // 多个时机被调），同步重包一次常常还是被它盖掉 —— 实测 exo_play_pause
+                    // 是唯一会漏描边的按钮。再延后一帧补一次，把它彻底压住。
+                    applyIconOutline()
+                    binding.root.post { applyIconOutline() }
+                }
+
+                override fun onRepeatModeChanged(repeatMode: Int) {
+                    applyIconOutline()
+                }
+
+                override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+                    applyIconOutline()
+                }
+
+                override fun onTrackSelectionParametersChanged(
+                    parameters: androidx.media3.common.TrackSelectionParameters,
+                ) {
+                    applyIconOutline()
                 }
 
                 override fun onPlayerError(error: PlaybackException) {
