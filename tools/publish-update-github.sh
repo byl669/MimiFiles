@@ -23,7 +23,10 @@
 #   ③ 生成新清单（含 sha256 / size / 绝对下载地址）
 #   ④ 提交 update/manifest.json 并推送 main —— **先推清单再建 Release**，
 #      让 tag 快照里同时包含与之匹配的清单
-#   ⑤ 建 Release（tag=v<versionName>）并上传 APK 资产
+#   ⑤ 建 Release（tag=v<versionName>）并上传 APK 资产。同版本号若已存在，
+#      仅当已发布资产的 sha256 digest 与本地文件**完全一致**时才续跑
+#      （跳过建库与上传，只补跑后续步骤）；不一致则报错要求换版本号，
+#      避免覆盖已发布的历史版本。
 #   ⑥ purge jsDelivr 缓存
 #   ⑦ 自检：raw 清单必须是新版（硬闸门，证明清单真的推上去了）；
 #      四个 jsDelivr 服务商（cdn/gcore/testingcf/fastly）逐个探测并退避重试，
@@ -48,6 +51,9 @@ FASTLY="https://fastly.jsdelivr.net/gh/${REPO}@${BRANCH}/${MANIFEST_IN_REPO}"
 GCORE="https://gcore.jsdelivr.net/gh/${REPO}@${BRANCH}/${MANIFEST_IN_REPO}"
 TESTINGCF="https://testingcf.jsdelivr.net/gh/${REPO}@${BRANCH}/${MANIFEST_IN_REPO}"
 RAW="https://raw.githubusercontent.com/${REPO}/${BRANCH}/${MANIFEST_IN_REPO}"
+# 直读仓库内容的 API：**没有 CDN 缓存层**，是"清单有没有真的推上去"的权威判据。
+# raw.githubusercontent.com 带约 5 分钟边缘缓存，刚 push 完常仍返回旧文件。
+MANIFEST_API="https://api.github.com/repos/${REPO}/contents/${MANIFEST_IN_REPO}?ref=${BRANCH}"
 PURGE_URL="https://purge.jsdelivr.net/gh/${REPO}@${BRANCH}/${MANIFEST_IN_REPO}"
 
 PY="$(command -v python3 || true)"
@@ -75,6 +81,18 @@ gh_api() { # $1=method $2=path $3=datafile(optional) → body + 最后行 HTTP=c
   code="$(printf '%s' "$body" | grep -o 'HTTP=[0-9]*' | tail -1 | cut -d= -f2)"
   printf '%s' "$body" | sed '$d'
   [ "$code" = "200" ] || [ "$code" = "201" ] || { echo "PUBLISH_FAIL GitHub API $method $path → HTTP $code"; return 1; }
+}
+
+# 按 tag 取 Release JSON；不存在则输出空串（不报错、不打印）。
+release_by_tag_json() {
+  local body code
+  body="$(curl -sS --noproxy '*' --connect-timeout 15 --max-time 30 \
+    -H "Authorization: Bearer $TOKEN" -H 'Accept: application/vnd.github+json' \
+    "https://api.github.com/repos/${REPO}/releases/tags/${TAG}" \
+    -w '\nHTTP=%{http_code}' 2>/dev/null || true)"
+  code="$(printf '%s' "$body" | grep -o 'HTTP=[0-9]*' | tail -1 | cut -d= -f2 || true)"
+  [ "$code" = "200" ] && printf '%s' "$body" | sed '$d'
+  return 0
 }
 
 # ── 参数 ─────────────────────────────────────────────────────────────────────
@@ -117,9 +135,40 @@ for f in "${APK_ARGS[@]}"; do
   bash "$PROJ_DIR/tools/check-r8-keeps.sh" "$f" || { echo "PUBLISH_FAIL R8 keep 自检未通过"; exit 1; }
 done
 
-# ── 同名 tag 已存在则拒绝（防覆盖历史版本）───────────────────────────────────
-if gh_api GET "/repos/${REPO}/releases/tags/${TAG}" >/dev/null 2>&1; then
-  echo "PUBLISH_FAIL Release $TAG 已存在，换个版本号，别覆盖历史版本。"; exit 1
+# ── 同名 tag 已存在：只有"本地 APK 与已发布资产逐字节相同"才允许续跑 ─────────
+# 原则仍是"不覆盖已发布的历史版本"。但发布可能在**末尾自检**阶段失败（Release
+# 与资产其实都已上线），此时重跑同一版本号是安全的：内容一致就没有任何覆盖。
+# 判据用 GitHub 资产自带的 sha256 digest（API 的 digest 字段），不是大小。
+EXIST_RELEASE_JSON="$(release_by_tag_json)"
+RESUME_OK=""
+if [ -n "$EXIST_RELEASE_JSON" ]; then
+  echo "== Release $TAG 已存在，核对已发布资产与本地文件是否同源"
+  printf '%s' "$EXIST_RELEASE_JSON" | "$PY" -c 'import hashlib, json, os, sys
+d = json.load(sys.stdin)
+by_name = {a["name"]: a.get("digest") for a in d.get("assets", [])}
+ok = True
+for p in sys.argv[1:]:
+    h = hashlib.sha256()
+    with open(p, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    want = "sha256:" + h.hexdigest()
+    base = os.path.basename(p)
+    got = by_name.get(base)
+    if got == want:
+        print(f"   ✓ {base} 与本地逐字节相同，本次只续跑后续步骤")
+    else:
+        print(f"   ✗ {base} 不一致：已发布 {got or '缺失'}，本地 {want}")
+        ok = False
+print("SAME" if ok else "DIFFERENT")' "${APK_ARGS[@]}" > /tmp/mimi-resume.txt 2>&1 || true
+  cat /tmp/mimi-resume.txt | sed '$d'
+  VERDICT="$(tail -1 /tmp/mimi-resume.txt)"
+  rm -f /tmp/mimi-resume.txt
+  if [ "$VERDICT" != "SAME" ]; then
+    echo "PUBLISH_FAIL Release $TAG 已存在且内容不同，换个版本号，别覆盖历史版本。"
+    exit 1
+  fi
+  RESUME_OK=1
 fi
 
 # ── 生成新清单 ───────────────────────────────────────────────────────────────
@@ -182,16 +231,31 @@ print(json.dumps({
     "draft": False, "prerelease": False,
 }, ensure_ascii=False))
 PYEOF
-REL_ID="$(gh_api POST "/repos/${REPO}/releases" "$REL_JSON" | "$PY" -c 'import json,sys; print(json.load(sys.stdin)["id"])')"
-echo "== Release $TAG 已创建 (id=$REL_ID)"
+# Release 有两种来路：新发（POST 创建），或同版本续跑（复用前面已核对过
+# "资产逐字节相同"的那一个）。续跑时不再上传资产——内容本来就一样。
+if [ -n "$RESUME_OK" ]; then
+  REL_ID="$(printf '%s' "$EXIST_RELEASE_JSON" | "$PY" -c 'import json,sys; print(json.load(sys.stdin)["id"])')"
+else
+  REL_ID="$(gh_api POST "/repos/${REPO}/releases" "$REL_JSON" | "$PY" -c 'import json,sys; print(json.load(sys.stdin)["id"])')"
+  echo "== Release $TAG 已创建 (id=$REL_ID)"
+fi
 for f in "${APK_ARGS[@]}"; do
+  if [ -n "$RESUME_OK" ]; then
+    echo "== 资产 $(basename "$f") 已在位且逐字节相同，跳过上传"
+    continue
+  fi
   UP="$(curl -sS --noproxy '*' --connect-timeout 15 --max-time 600 \
     -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/octet-stream" \
     --data-binary @"$f" \
     "https://uploads.github.com/repos/${REPO}/releases/${REL_ID}/assets?name=$(basename "$f")" \
     -o /dev/null -w '%{http_code}')"
-  [ "$UP" = "201" ] || { echo "PUBLISH_FAIL 上传资产 $(basename "$f") HTTP=$UP"; exit 1; }
-  echo "== 已上传 $(basename "$f")"
+  case "$UP" in
+    201) echo "== 已上传 $(basename "$f")" ;;
+    # 422 = 同名资产已存在（例如上次上传成功但后面步骤失败）。内容是否一致
+    # 由前面那道 sha256 digest 核对负责，这里不重复判断。
+    422) echo "== 资产 $(basename "$f") 已存在，跳过上传" ;;
+    *) echo "PUBLISH_FAIL 上传资产 $(basename "$f") HTTP=$UP"; exit 1 ;;
+  esac
 done
 
 # ── purge jsDelivr ───────────────────────────────────────────────────────────
@@ -202,19 +266,21 @@ echo "== jsDelivr purge → HTTP $PURGE_CODE"
 
 # ── 自检 ─────────────────────────────────────────────────────────────────────
 #
-# 各镜像的缓存互相独立：jsDelivr 的 cdn./fastly./gcore./testingcf. 是**不同
-# CDN 服务商、不同缓存命名空间**，同一次 purge 之后可能停在不同的代际。
-# 2026-10-29 发布 0.7.23 后同一分钟内实测：cdn=33、fastly=33、gcore=35、
-# testingcf=35。所以自检分两层：
+# 这里的"新鲜度"分两类，判据必须分开，否则会互相误导：
 #
-#   ① raw 必须是新版 —— 硬闸门。它直接证明清单已经提交到发布分支，是"发布
-#      真的落地了"的唯一权威判据（push 失败、tag 指错，只有它会暴露）。
-#   ② 至少一个 jsDelivr 节点新鲜 —— 否则国内用户（raw 常被墙）看不到更新。
-#      给 60 秒退避重试（purge 是最终一致的）。若最后还是全陈旧，**降级为
-#      PUBLISH_DEGRADED 而不判死**：此刻 Release 与清单都已上线、缓存会自行
-#      过期，脚本没有任何可执行的补救动作，硬判失败只会留下半完成状态。
+#   ① 清单有没有**真的提交到分支** —— 用 GitHub API 直读（无缓存层）。
+#      硬闸门。push 失败、tag 指错，只有它会暴露。
+#      ⚠️ 不能用 raw.githubusercontent.com 做这件事：它带约 5 分钟边缘缓存，
+#      刚推完常常仍返回旧文件。本轮发布 0.7.24 时就被它误判过一次
+#      （仓库里已是 36，raw 还发 35）。
+#   ② CDN 节点有没有跟上 —— jsDelivr 的 cdn./gcore./testingcf./fastly. 是
+#      **不同 CDN 服务商、不同缓存命名空间**，同一次 purge 后可能停在不同代际
+#      （2026-10-29 实测：cdn=33、fastly=33、gcore=35、testingcf=35）。
+#      给退避重试；一个都不新鲜时降级为 DEGRADED 而不判死 —— 此刻 Release 与
+#      清单都已上线、缓存会自行过期，脚本没有任何可执行的补救动作，硬判失败
+#      只会留下半完成状态。
 sleep 3
-# 读某个镜像上的 versionCode；拿不到 / 解析失败都输出空串，由调用方判断。
+# 读某个 URL 上的 versionCode；拿不到 / 解析失败都输出空串，由调用方判断。
 probe_manifest() { # $1=url
   local body code only
   body="$(curl -sS --noproxy '*' --connect-timeout 15 --max-time 60 \
@@ -232,13 +298,20 @@ except Exception:
     print("")' 2>/dev/null || true
 }
 
-# ① 权威判据
-RAW_CODE="$(probe_manifest "$RAW")"
-if [ "$RAW_CODE" != "$VERSION_CODE" ]; then
-  echo "PUBLISH_FAIL 仓库里的清单不是新版（raw 读到 versionCode=‘${RAW_CODE:-空}’，期望 ${VERSION_CODE}）——清单没提交成功？"
+# ① 权威判据：直读分支上的清单文件本体
+API_CODE="$(curl -sS --noproxy '*' --connect-timeout 15 --max-time 30 \
+  -H "Authorization: Bearer $TOKEN" -H 'Accept: application/vnd.github.raw' \
+  "$MANIFEST_API" 2>/dev/null \
+  | "$PY" -c 'import json,sys
+try:
+    print(json.load(sys.stdin).get("versionCode", ""))
+except Exception:
+    print("")' 2>/dev/null || true)"
+if [ "$API_CODE" != "$VERSION_CODE" ]; then
+  echo "PUBLISH_FAIL 分支 ${BRANCH} 上的清单不是新版（API 直读 versionCode=‘${API_CODE:-不可达}’，期望 ${VERSION_CODE}）——清单没提交成功？"
   exit 1
 fi
-echo "== 自检 raw 清单 ✓ versionCode=${RAW_CODE}（发布已落地）"
+echo "== 自检 仓库清单（API 直读，无缓存）✓ versionCode=${API_CODE}"
 
 # ② CDN 新鲜度：轮询到有一个节点返回新版为止，最多约 60 秒
 CDN_NAMES=(cdn gcore testingcf fastly)
@@ -273,6 +346,15 @@ while [ "$i" -lt 4 ]; do
 done
 if [ -z "$FRESH_CDN" ]; then
   echo "== WARN 没有任何 CDN 节点返回新版：国内用户会暂时看不到这次更新，待缓存过期后自愈。"
+fi
+
+# raw 只报状态、不作判据：它带约 5 分钟边缘缓存，刚发布时通常仍是旧值。
+# 客户端仍把它排在首位（内容最实时、海外首选），所以值得看一眼。
+RAW_NOW="$(probe_manifest "$RAW")"
+if [ "$RAW_NOW" = "$VERSION_CODE" ]; then
+  echo "== 自检 raw 清单 ✓ versionCode=${RAW_NOW}"
+else
+  echo "== INFO raw 清单仍滞后（versionCode=‘${RAW_NOW:-不可达}’）——约 5 分钟边缘缓存，属正常，不作判据"
 fi
 
 for f in "${APK_ARGS[@]}"; do
