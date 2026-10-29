@@ -25,10 +25,10 @@
 #      让 tag 快照里同时包含与之匹配的清单
 #   ⑤ 建 Release（tag=v<versionName>）并上传 APK 资产
 #   ⑥ purge jsDelivr 缓存
-#   ⑦ 自检：cdn.jsdelivr 清单 200 且 versionCode 是新的（硬闸门）；
-#      fastly.jsdelivr / raw 各查一遍——**只报 WARN**。fastly 是独立缓存命名
-#      空间，purge 清不到它，旧清单可滞留 12 小时；客户端已改为取多镜像
-#      最大值，所以这种滞后不再会误导用户，但每次发布都要能看到它。
+#   ⑦ 自检：raw 清单必须是新版（硬闸门，证明清单真的推上去了）；
+#      四个 jsDelivr 服务商（cdn/gcore/testingcf/fastly）逐个探测并退避重试，
+#      一个都不新鲜时末行输出 PUBLISH_DEGRADED 而不是 PUBLISH_OK —— 各服务商
+#      缓存互相独立（实测同一次 purge 后 cdn=33 而 gcore=35）。
 #      Release 资产必须可达（硬闸门）。
 #
 # 令牌:
@@ -45,6 +45,8 @@ BRANCH="${GITHUB_BRANCH:-main}"
 MANIFEST_IN_REPO="update/manifest.json"
 JSDELIVR="https://cdn.jsdelivr.net/gh/${REPO}@${BRANCH}/${MANIFEST_IN_REPO}"
 FASTLY="https://fastly.jsdelivr.net/gh/${REPO}@${BRANCH}/${MANIFEST_IN_REPO}"
+GCORE="https://gcore.jsdelivr.net/gh/${REPO}@${BRANCH}/${MANIFEST_IN_REPO}"
+TESTINGCF="https://testingcf.jsdelivr.net/gh/${REPO}@${BRANCH}/${MANIFEST_IN_REPO}"
 RAW="https://raw.githubusercontent.com/${REPO}/${BRANCH}/${MANIFEST_IN_REPO}"
 PURGE_URL="https://purge.jsdelivr.net/gh/${REPO}@${BRANCH}/${MANIFEST_IN_REPO}"
 
@@ -199,6 +201,18 @@ PURGE_CODE="$(curl -sS --noproxy '*' --connect-timeout 15 --max-time 60 \
 echo "== jsDelivr purge → HTTP $PURGE_CODE"
 
 # ── 自检 ─────────────────────────────────────────────────────────────────────
+#
+# 各镜像的缓存互相独立：jsDelivr 的 cdn./fastly./gcore./testingcf. 是**不同
+# CDN 服务商、不同缓存命名空间**，同一次 purge 之后可能停在不同的代际。
+# 2026-10-29 发布 0.7.23 后同一分钟内实测：cdn=33、fastly=33、gcore=35、
+# testingcf=35。所以自检分两层：
+#
+#   ① raw 必须是新版 —— 硬闸门。它直接证明清单已经提交到发布分支，是"发布
+#      真的落地了"的唯一权威判据（push 失败、tag 指错，只有它会暴露）。
+#   ② 至少一个 jsDelivr 节点新鲜 —— 否则国内用户（raw 常被墙）看不到更新。
+#      给 60 秒退避重试（purge 是最终一致的）。若最后还是全陈旧，**降级为
+#      PUBLISH_DEGRADED 而不判死**：此刻 Release 与清单都已上线、缓存会自行
+#      过期，脚本没有任何可执行的补救动作，硬判失败只会留下半完成状态。
 sleep 3
 # 读某个镜像上的 versionCode；拿不到 / 解析失败都输出空串，由调用方判断。
 probe_manifest() { # $1=url
@@ -218,28 +232,48 @@ except Exception:
     print("")' 2>/dev/null || true
 }
 
-# cdn.jsdelivr 是硬闸门：它是国内用户的主路径，必须是新版。
-REMOTE_CODE="$(probe_manifest "$JSDELIVR")"
-if [ "$REMOTE_CODE" != "$VERSION_CODE" ]; then
-  echo "PUBLISH_FAIL jsDelivr 清单不是新版（读到的 versionCode=‘${REMOTE_CODE:-空}’，期望 $VERSION_CODE）"
+# ① 权威判据
+RAW_CODE="$(probe_manifest "$RAW")"
+if [ "$RAW_CODE" != "$VERSION_CODE" ]; then
+  echo "PUBLISH_FAIL 仓库里的清单不是新版（raw 读到 versionCode=‘${RAW_CODE:-空}’，期望 ${VERSION_CODE}）——清单没提交成功？"
   exit 1
 fi
-echo "== 自检 cdn.jsdelivr 清单 ✓ versionCode=$REMOTE_CODE"
+echo "== 自检 raw 清单 ✓ versionCode=${RAW_CODE}（发布已落地）"
 
-# fastly 与 cdn **是两套独立缓存**，purge.jsdelivr.net 只清 cdn 那一套；
-# fastly 的旧清单能滞留 12 小时（s-maxage=43200，实测）。这是已知偏差、
-# 脚本侧无法消除，所以记 WARN 而不是 FAIL —— 否则每次发布都会被这条
-# 必然命中的告警卡死，闸门就失去意义了。客户端已改为取多镜像最大值，
-# 陈旧镜像不会再被误当成"已是最新"。
-for pair in "fastly|$FASTLY" "raw|$RAW"; do
-  name="${pair%%|*}"; url="${pair#*|}"
-  code="$(probe_manifest "$url")"
-  if [ "$code" = "$VERSION_CODE" ]; then
-    echo "== 自检 ${name} 清单 ✓ versionCode=$code"
-  else
-    echo "== WARN ${name} 清单仍不是新版（versionCode=‘${code:-空}’/不可达）。已知缓存滞后；客户端取多镜像最大值，不会被误导。"
+# ② CDN 新鲜度：轮询到有一个节点返回新版为止，最多约 60 秒
+CDN_NAMES=(cdn gcore testingcf fastly)
+CDN_URLS=("$JSDELIVR" "$GCORE" "$TESTINGCF" "$FASTLY")
+FRESH_CDN=""
+attempt=1
+while [ "$attempt" -le 7 ]; do
+  i=0
+  while [ "$i" -lt 4 ]; do
+    c="$(probe_manifest "${CDN_URLS[$i]}")"
+    if [ "$c" = "$VERSION_CODE" ]; then FRESH_CDN="${CDN_NAMES[$i]}"; break; fi
+    i=$((i + 1))
+  done
+  [ -n "$FRESH_CDN" ] && break
+  if [ "$attempt" -lt 7 ]; then
+    echo "== 还没有新鲜的 CDN 节点（第 ${attempt} 次探测），10 秒后重试…"
+    sleep 10
   fi
+  attempt=$((attempt + 1))
 done
+
+# 逐个报状态，滞后的一律列出来（不静默）
+i=0
+while [ "$i" -lt 4 ]; do
+  c="$(probe_manifest "${CDN_URLS[$i]}")"
+  if [ "$c" = "$VERSION_CODE" ]; then
+    echo "== 自检 ${CDN_NAMES[$i]} 清单 ✓ versionCode=$c"
+  else
+    echo "== WARN ${CDN_NAMES[$i]} 清单滞后（versionCode=‘${c:-不可达}’，期望 ${VERSION_CODE}）"
+  fi
+  i=$((i + 1))
+done
+if [ -z "$FRESH_CDN" ]; then
+  echo "== WARN 没有任何 CDN 节点返回新版：国内用户会暂时看不到这次更新，待缓存过期后自愈。"
+fi
 
 for f in "${APK_ARGS[@]}"; do
   H="$(curl -sIL --noproxy '*' --connect-timeout 15 --max-time 60 \
@@ -248,5 +282,11 @@ for f in "${APK_ARGS[@]}"; do
   [ "$H" = "200" ] || { echo "PUBLISH_FAIL Release 资产不可达"; exit 1; }
 done
 
-echo "PUBLISH_OK"
+if [ -z "$FRESH_CDN" ]; then
+  # 末行给 PUBLISH_DEGRADED 而不是 PUBLISH_OK：不是失败（发布已落地、缓存会自愈），
+  # 但也不能当成"全绿"——下次发布前值得回看这条。
+  echo "PUBLISH_DEGRADED 发布已落地，但 CDN 缓存尚未跟上（见上面 WARN）"
+else
+  echo "PUBLISH_OK"
+fi
 echo "PUBLIC_MANIFEST=$JSDELIVR"

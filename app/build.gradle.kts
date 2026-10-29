@@ -80,15 +80,24 @@ android {
             //
             // ## 为什么是镜像列表而不是单一地址（PiliPlus 项目实测教训）
             // raw.githubusercontent.com 内容最实时但国内直连常被墙；jsDelivr CDN
-            // 可达性最好但对 @main 有小时级缓存、purge 也不保证生效。所以按
-            // 「raw → jsDelivr → fastly」依次尝试，任一成功即用——客户端
-            // 以「清单能解析出版本字段」为成功判据，天然挡掉镜像返回的错误页。
+            // 可达性最好但对 @main 有小时级缓存、purge 也不保证生效。
+            //
+            // ## 为什么要列三个 jsDelivr 服务商（M7.22，2026-10-29 实测）
+            // jsDelivr 的 `cdn.` / `fastly.` / `gcore.` / `testingcf.` 是**不同 CDN
+            // 服务商、不同缓存命名空间**，同一次 purge 之后它们可能停在不同的代际：
+            // 发布 0.7.23 之后同一分钟内实测 cdn=33、fastly=33、gcore=35、
+            // testingcf=35。只列 cdn+fastly，国内用户（raw 被墙）就会全部拿到
+            // 旧清单，被明确告知"已是最新"。多列两个服务商把"恰好都陈旧"的概率
+            // 压下去，配合客户端取最大版本号的规则才算真的堵住。
+            // 顺序按"常见可达性 + 实测新鲜度"排，客户端只在新版未找到时才继续问。
             buildConfigField(
                 "java.util.List<String>",
                 "UPDATE_MANIFEST_URLS",
                 "java.util.Arrays.asList(" +
                     "\"https://raw.githubusercontent.com/byl669/MimiFiles/main/update/manifest.json\", " +
                     "\"https://cdn.jsdelivr.net/gh/byl669/MimiFiles@main/update/manifest.json\", " +
+                    "\"https://gcore.jsdelivr.net/gh/byl669/MimiFiles@main/update/manifest.json\", " +
+                    "\"https://testingcf.jsdelivr.net/gh/byl669/MimiFiles@main/update/manifest.json\", " +
                     "\"https://fastly.jsdelivr.net/gh/byl669/MimiFiles@main/update/manifest.json\")",
             )
         }

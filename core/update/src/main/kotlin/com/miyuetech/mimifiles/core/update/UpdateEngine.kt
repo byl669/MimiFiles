@@ -55,7 +55,7 @@ class UpdateEngine private constructor(
 ) {
 
     /**
-     * 清单镜像列表，按优先级排（raw 最实时 → jsDelivr → fastly）。
+     * 清单镜像列表，按优先级排（raw 最实时 → cdn → gcore → testingcf → fastly）。
      *
      * ## 为什么是列表（PiliPlus 项目的实测教训）
      * 单一镜像单点故障：raw 国内直连常被墙，jsDelivr 对分支引用有小时级缓存
