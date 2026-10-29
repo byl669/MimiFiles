@@ -1,14 +1,14 @@
 {
-  "versionCode": 35,
-  "versionName": "0.7.23-M7.21",
+  "versionCode": 36,
+  "versionName": "0.7.24-M7.22",
   "publishedAt": "2026-10-29",
-  "notes": "M7.21: 修复更新检查可能误报「已是最新版本」——新版已发布却提示没有更新。原因是 CDN 各镜像缓存互相独立，个别镜像会滞留旧清单 12 小时；现在改为取所有可达镜像里最新的版本号，任何一个镜像新鲜就不会被误导。此版本无界面变化",
+  "notes": "M7.22: 继续加固更新检查——新增两个独立的 CDN 服务商节点（gcore / testingcf），配合「取所有镜像里最新版本号」的规则，即使个别节点还在缓存旧清单，也不会再出现「新版已发布却提示已是最新」的情况。此版本无界面变化",
   "files": [
     {
       "abi": "arm64-v8a",
-      "url": "https://github.com/byl669/MimiFiles/releases/download/v0.7.23-M7.21/mimifiles-0.7.23-M7.21-arm64.apk",
-      "sha256": "09b5f1b1a76329fee16bc1e5430274572fbbba9c2dc5f8d2533adeaa274ecd8d",
-      "size": 14207905
+      "url": "https://github.com/byl669/MimiFiles/releases/download/v0.7.24-M7.22/mimifiles-0.7.24-M7.22-arm64.apk",
+      "sha256": "53b063898587920cafc3339ce7835e5f8a5b057421fcdad249576dec228c7c49",
+      "size": 14207901
     }
   ],
   "minSupported": 0
