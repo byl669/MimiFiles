@@ -22,6 +22,10 @@ keystore.properties
 # 系统
 .DS_Store
 
+# Python 脚本缓存（scripts/ 下是冒烟测试用的 py）
+__pycache__/
+*.pyc
+
 # 发布产物 / 内部交付文档（含历史交付报告，仅存本机）
 dist/
 docs/

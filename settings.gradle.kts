@@ -42,8 +42,8 @@ include(":core:fs-bootstrap")  // ★ 后端装配入口（把 4 个后端一次
 include(":core:shortcut")      // ★ 桌面快捷方式（文件夹 → 桌面图标，pin + legacy 双路）
 include(":core:network")       // 连通性、网卡枚举、NSD/mDNS
 include(":core:share-server")  // 分享服务端（NanoHTTPD 内核 + FtpServer 内核 + FsBridge）
-include(":core:preview")
-include(":core:archive")       // 类型探测、缩略图、编码探测、PDF/文本渲染器
+include(":core:preview")       // 类型探测（魔数+扩展名）、缩略图、EXIF、外部打开
+include(":core:archive")       // 压缩包读取（zip/tar/gz/bz2/xz/7z，rar 只读）
 include(":core:datastore")     // Room / DataStore / Keystore
 include(":core:ui")            // 主题、通用控件
 include(":core:update")        // ★ 应用内自更新（清单/校验/下载/状态机）
