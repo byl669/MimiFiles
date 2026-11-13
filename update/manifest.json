@@ -1,14 +1,14 @@
 {
-  "versionCode": 40,
-  "versionName": "0.7.28-M7.26",
+  "versionCode": 41,
+  "versionName": "0.7.29-M7.27",
   "publishedAt": "2026-11-13",
-  "notes": "SMB 主目录：共享名留空可列出全部共享；连接条目三点菜单新增复制此连接",
+  "notes": "修复 7GB 大文件系统分享卡在准备中：本机文件直开真实 fd 绕过 FUSE 代理；超大远端文件改为流式直发不再整盘落盘；新增 13 条单测，基线 355 项全绿",
   "files": [
     {
       "abi": "arm64-v8a",
-      "url": "https://github.com/byl669/MimiFiles/releases/download/v0.7.28-M7.26/mimifiles-0.7.28-M7.26-arm64.apk",
-      "sha256": "67257d30dddc088699e3f2e42d9faa5a756687f6df38b976fa9529c39c503814",
-      "size": 14234737
+      "url": "https://github.com/byl669/MimiFiles/releases/download/v0.7.29-M7.27/mimifiles-0.7.29-M7.27-arm64.apk",
+      "sha256": "b67cf3d1bb181577d647a9de4a22ac7befdba6c904e2a8cd741a2dd165d8f495",
+      "size": 14235237
     }
   ],
   "minSupported": 0
