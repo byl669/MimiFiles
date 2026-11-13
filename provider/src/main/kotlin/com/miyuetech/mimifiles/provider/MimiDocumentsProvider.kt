@@ -241,6 +241,14 @@ class MimiDocumentsProvider : DocumentsProvider() {
      *
      * 代理 fd 是 API 26 才有的，所以 24/25 上退回管道（顺序读）——那两个版本上
      * 能打开文件就已经是可用状态了。
+     *
+     * ## 本机文件不走代理 fd（M7.27）
+     * [openRead] 对 `local` scheme 直接返回真实文件 fd。代理 fd 是 **FUSE 文件**：
+     * 每一次内核 read 都要跨进程回调 [ReadCallback.onRead]，单次上限受 FUSE
+     * `max_read` 约束（常见 128 KiB），7 GB 就是数万次 Binder 往返；更关键的是
+     * FUSE fd **不支持 `sendfile` / `FileChannel.transferTo` 的零拷贝路径**，
+     * 而互传、网盘类接收方正是靠它做高速传输，于是会一直停在「准备中」。
+     * 真实 fd 可 seek、可零拷贝，且文件被删/改名后句柄仍有效（POSIX 语义）。
      */
     override fun openDocument(
         documentId: String,
@@ -310,13 +318,39 @@ class MimiDocumentsProvider : DocumentsProvider() {
     // ══════════════════════════════════════════════════════════════════════
 
     private fun openRead(path: FsPath): ParcelFileDescriptor {
+        // 本机文件（含系统分享落地后的暂存文件）直接给真实 fd，不经过 FUSE。
+        // 理由见 openDocument 的类注释：代理 fd 在大文件上会把接收方拖死。
+        if (DocumentFdRouting.isLocal(path)) {
+            val file = DocumentFdRouting.directFile(path)
+                ?: throw FileNotFoundException("本机文件不存在或不是文件：$path")
+            return runCatching {
+                ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+            }.getOrElse { throw failure(path.toString(), it) }
+        }
+
         val source = runCatching { runBlocking { using(path) { it.openRead(path) } } }
             .getOrElse { throw failure(path.toString(), it) }
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            proxyFd(ParcelFileDescriptor.MODE_READ_ONLY, ReadCallback(source))
+            proxyFd(ParcelFileDescriptor.MODE_READ_ONLY, ReadCallback(source, sizeOf(path, source)))
         } else {
             pipeRead(source)
         }
+    }
+
+    /**
+     * 代理 fd 需要提前知道文件长度：`onGetSize()` 返回 0 会被 FUSE 当成空文件，
+     * 接收方 probe 完大小就直接 EOF。后端报 `SIZE_UNKNOWN`（-1）时再补一次 stat；
+     * 仍然拿不到就退回 0，并如实记一条日志——这比假装文件是 0 字节好排查。
+     */
+    private fun sizeOf(path: FsPath, source: SeekableSource): Long {
+        val known = source.size
+        if (known >= 0) return known
+        val fromStat = runCatching { runBlocking { using(path) { it.stat(path).size } } }
+            .getOrDefault(-1L)
+        if (fromStat < 0) {
+            MimiLog.w(TAG, "无法确认文件长度，代理 fd 将按 0 字节报告：$path")
+        }
+        return fromStat.coerceAtLeast(0L)
     }
 
     private fun openWrite(path: FsPath, append: Boolean): ParcelFileDescriptor {
@@ -554,9 +588,12 @@ class MimiDocumentsProvider : DocumentsProvider() {
      * size 个字节"——SAF 的代理 fd 要的正是同一件事。中间不需要任何缓存或对齐。
      */
     @RequiresApi(Build.VERSION_CODES.O)
-    private class ReadCallback(private val source: SeekableSource) : ProxyFileDescriptorCallback() {
+    private class ReadCallback(
+        private val source: SeekableSource,
+        private val total: Long,
+    ) : ProxyFileDescriptorCallback() {
 
-        override fun onGetSize(): Long = source.size.takeIf { it >= 0 } ?: 0L
+        override fun onGetSize(): Long = total
 
         override fun onRead(offset: Long, size: Int, data: ByteArray): Int {
             val want = size.coerceAtMost(data.size)

@@ -146,4 +146,50 @@ class SystemShareTest {
         assertEquals("/data/cache/外发/合同.pdf", staged.path)
         assertEquals("合同.pdf", staged.displayName)
     }
+
+    // ── 超大远端文件：流式直发（M7.27）─────────────────────────────────
+
+    private val twoGb = 2048L * 1024 * 1024
+
+    @Test
+    fun 七GB的远端文件超过暂存上限时改为流式直发() {
+        val sevenGb = 7L * 1024 * 1024 * 1024
+        assertTrue(SystemShare.shouldStreamDirect(sevenGb, twoGb))
+    }
+
+    @Test
+    fun 超过4GB的大小不会被Int截断成负数() {
+        val fiveGb = 5L * 1024 * 1024 * 1024
+        assertTrue(fiveGb > Int.MAX_VALUE)
+        assertTrue(SystemShare.shouldStreamDirect(fiveGb, twoGb))
+    }
+
+    @Test
+    fun 恰好等于上限仍可落地() {
+        assertFalse(SystemShare.shouldStreamDirect(twoGb, twoGb))
+        assertFalse(SystemShare.shouldStreamDirect(twoGb - 1, twoGb))
+    }
+
+    @Test
+    fun 大小未知时不凭猜测跳过落地() {
+        assertFalse(SystemShare.shouldStreamDirect(-1L, twoGb))
+        assertFalse(SystemShare.shouldStreamDirect(0L, twoGb))
+    }
+
+    @Test
+    fun 上限不可信时保持原落盘路径() {
+        val sevenGb = 7L * 1024 * 1024 * 1024
+        assertFalse(SystemShare.shouldStreamDirect(sevenGb, 0L))
+        assertFalse(SystemShare.shouldStreamDirect(sevenGb, -1L))
+    }
+
+    @Test
+    fun 本机七GB文件既不落盘也不算流式() {
+        val entry = FsEntry(
+            path = FsPath.of("local", "", "/sdcard/纪录片 4K.iso"),
+            kind = FsKind.FILE,
+            size = 7L * 1024 * 1024 * 1024,
+        )
+        assertFalse(SystemShare.needsStaging(entry.path))
+    }
 }

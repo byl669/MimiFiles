@@ -34,6 +34,13 @@ import java.io.File
  * 所以：[SystemShare.needsStaging] 为真（非 `local`）的文件先落到应用私有缓存，
  * 再把**本地文件**的 URI 发出去。本机文件不复制，点完立刻弹面板。
  *
+ * ## 超大远端文件反过来：不要落地（M7.27）
+ * 落地的前提是"手机装得下、且搬得完"。一个 7 GB 的 NAS 文件既超不过 [PreviewCache]
+ * 的暂存上限（2 GB，还会按 `free/6` 收缩），也不该为了分享先把 7 GB 写进内部存储。
+ * 而互传、网盘这类接收方是**顺序整读**，恰好是代理 fd 最擅长的形态，不需要随机读。
+ * 所以超过 [PreviewCache.systemShareStageLimit] 的文件直接把远端 URI 发出去，
+ * 由接收方按自己的节奏流式读；调用方给一句「请保持连接」的提示，并保留「高级分享」兜底。
+ *
  * ## 为什么要显式 grantUriPermission 给所有候选应用
  * `FLAG_GRANT_READ_URI_PERMISSION` 只覆盖 `startActivity` 那一个接收者；文件管理器类
  * 应用常把 URI **再转发**一次（"用 XX 打开"其实是它自己再起 Intent），转发时权限就丢了。
@@ -88,6 +95,18 @@ object SystemShare {
     /** 本机文件可直接外发；其余后端（smb / webdav / saf）先落地。 */
     fun needsStaging(path: FsPath): Boolean = path.scheme != LOCAL_SCHEME
 
+    /**
+     * 已知大小超过落地上限的远端文件，改为**流式直发**（不整盘落盘）。
+     *
+     * 纯函数，单测能钉住边界：
+     *  - `size` 未知（-1 / 0）不流式 —— 仍走原来的落盘路径，由 `fetch` 边读边卡上限，
+     *    而不是凭一个不可信的大小就跳过落地；
+     *  - `stageLimit <= 0` 不流式 —— 上限本身不可信时保持旧行为；
+     *  - 恰好等于上限仍可落地，只有"严格大于"才跳过。
+     */
+    fun shouldStreamDirect(size: Long, stageLimit: Long): Boolean =
+        stageLimit > 0 && size > stageLimit
+
     /** 落地后的本地文件要变回 `FsPath`，才能交给同一个 Provider 发出去。 */
     fun stagedPath(file: File): FsPath = FsPath.of(LOCAL_SCHEME, "", file.absolutePath)
 
@@ -135,7 +154,16 @@ object SystemShare {
 
     /** 准备结果：要么全部就绪，要么明确说出是哪个文件没准备好。 */
     sealed interface PrepareResult {
-        data class Ready(val uris: List<Uri>, val mime: String, val stagedCount: Int) : PrepareResult
+        /**
+         * @param stagedCount 真正落了盘的文件数（决定要不要显示进度框）。
+         * @param streamingCount 直接流式外发的超大远端文件数（决定要不要提示保持连接）。
+         */
+        data class Ready(
+            val uris: List<Uri>,
+            val mime: String,
+            val stagedCount: Int,
+            val streamingCount: Int = 0,
+        ) : PrepareResult
         data class Failed(val name: String, val reason: String? = null) : PrepareResult
     }
 
@@ -152,15 +180,28 @@ object SystemShare {
     ): PrepareResult {
         if (!canShare(entries)) return PrepareResult.Failed(entries.firstOrNull()?.name ?: "—")
         val cache = PreviewCache(context.applicationContext)
+        val stageLimit = cache.systemShareStageLimit()
         val uris = ArrayList<Uri>(entries.size)
         var staged = 0
+        var streaming = 0
         entries.forEachIndexed { index, entry ->
             val path = try {
                 if (needsStaging(entry.path)) {
-                    val file = cache.materializeForSystemShare(entry.path, entry.size)
-                        ?: return PrepareResult.Failed(entry.name)
-                    staged++
-                    stagedPath(file)
+                    if (shouldStreamDirect(entry.size, stageLimit)) {
+                        // 不落盘：直接把远端 URI 交给接收方，由它顺序流式读。
+                        streaming++
+                        MimiLog.d(
+                            TAG,
+                            "超大远端文件改为流式直发：${entry.path}（" +
+                                "${entry.size / 1024 / 1024}MB > ${stageLimit / 1024 / 1024}MB）",
+                        )
+                        entry.path
+                    } else {
+                        val file = cache.materializeForSystemShare(entry.path, entry.size)
+                            ?: return PrepareResult.Failed(entry.name)
+                        staged++
+                        stagedPath(file)
+                    }
                 } else {
                     entry.path
                 }
@@ -176,8 +217,8 @@ object SystemShare {
         }
         val mime = mimeOf(entries)
         // 实测断言用：本机文件应看到 staged=0（零拷贝），多文件应看到 uris=N。
-        MimiLog.d(TAG, "准备完成：${uris.size} 个 URI，mime=$mime，落地 $staged 个")
-        return PrepareResult.Ready(uris, mime, staged)
+        MimiLog.d(TAG, "准备完成：${uris.size} 个 URI，mime=$mime，落地 $staged 个，流式 $streaming 个")
+        return PrepareResult.Ready(uris, mime, staged, streaming)
     }
 
     /**

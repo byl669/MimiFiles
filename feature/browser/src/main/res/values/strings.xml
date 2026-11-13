@@ -16,6 +16,8 @@
     <string name="browser_share_preparing">正在准备分享（%1$d/%2$d）…</string>
     <string name="browser_share_prepare_failed">无法准备「%1$s」，请检查网络连接或改用高级分享</string>
     <string name="browser_share_no_target">没有应用可以接收这种类型的文件</string>
+    <!-- M7.27：超大远端文件不整盘落盘，改为流式直发，必须提醒用户保持连接 -->
+    <string name="browser_share_streaming_hint">%1$d 个大文件将直接从网络位置传输，请保持连接；中断时可改用「高级分享」</string>
     <string name="browser_share_directory_hint">文件夹不能系统分享，请用「高级分享」</string>
     <string name="browser_connections_unavailable">网络连接功能不可用</string>
     <string name="browser_home_title">位置</string>

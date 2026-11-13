@@ -212,6 +212,16 @@ class PreviewCache(
         }
     }
 
+    /**
+     * 本次「系统分享」允许落盘的上限（M7.27）。
+     *
+     * 调用方在准备阶段用它判断：**超过这个值的远端文件不要再整盘搬进手机**。
+     * 必须问本类而不是照抄 [SHARE_MAX_BYTES] —— 真实上限还被 [effectiveCap] 的
+     * `free/6` 夹过一次，设备空间紧张时可能只有几百 MB。两边各写一份常量，
+     * 迟早会出现"UI 以为能落地、底下却直接失败"的错位。
+     */
+    fun systemShareStageLimit(): Long = effectiveCap(SHARE_MAX_BYTES)
+
     /** 仅测试与设置页"清理缓存"使用。 */
     suspend fun clear() = withContext(PreviewDispatchers.io) {
         lock.withLock {

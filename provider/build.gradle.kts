@@ -33,4 +33,7 @@ dependencies {
     implementation(project(":core:common"))
 
     implementation(libs.kotlinx.coroutines.android)
+
+    // fd 路由是纯 Kotlin（只碰 FsPath / java.io.File），不需要 Robolectric。
+    testImplementation(libs.junit)
 }

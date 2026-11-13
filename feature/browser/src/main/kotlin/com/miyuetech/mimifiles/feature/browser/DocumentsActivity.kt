@@ -35,6 +35,7 @@ import com.miyuetech.mimifiles.core.model.FsEntry
 import com.miyuetech.mimifiles.core.model.FsPath
 import com.miyuetech.mimifiles.core.model.FsSortField
 import com.miyuetech.mimifiles.core.preview.PreviewArgs
+import com.miyuetech.mimifiles.core.preview.PreviewCache
 import com.miyuetech.mimifiles.core.preview.PreviewEnvironment
 import com.miyuetech.mimifiles.core.preview.SystemShare
 import com.miyuetech.mimifiles.core.shortcut.FolderShortcuts
@@ -1090,16 +1091,23 @@ class DocumentsActivity : AppCompatActivity() {
     /**
      * 弹出系统分享面板。
      *
-     * 本机文件是零拷贝的，点完直接弹；只有 SMB/WebDAV/SAF 上的文件需要先落到
-     * 私有缓存（见 [SystemShare] 的注释），那段等待才显示进度。`lifecycleScope`
-     * 被销毁时用 `finally` 收掉对话框，避免转屏后对一个已销毁的 Activity 调 dismiss。
+     * 本机文件是零拷贝的，点完直接弹；SMB/WebDAV/SAF 上的**可落地**文件需要先落到
+     * 私有缓存（见 [SystemShare] 的注释），那段等待才显示进度。超过暂存上限的
+     * 超大文件改为流式直发，既不落盘也不显示进度框，只提示保持连接。
+     * `lifecycleScope` 被销毁时用 `finally` 收掉对话框，避免转屏后对一个已销毁的
+     * Activity 调 dismiss。
      */
     private fun startSystemShare(entries: List<FsEntry>) {
         if (!SystemShare.canShare(entries)) {
             toast(getString(R.string.browser_share_directory_hint))
             return
         }
-        val stagedCount = entries.count { SystemShare.needsStaging(it.path) }
+        // 与 SystemShare.prepare() 用同一个上限，避免"UI 以为要落地、底下却不落"的错位。
+        val stageLimit = PreviewCache(applicationContext).systemShareStageLimit()
+        val stagedCount = entries.count {
+            SystemShare.needsStaging(it.path) &&
+                !SystemShare.shouldStreamDirect(it.size, stageLimit)
+        }
         val dialog = if (stagedCount > 0) {
             AlertDialog.Builder(this)
                 .setMessage(getString(R.string.browser_share_preparing, 0, entries.size))
@@ -1128,6 +1136,14 @@ class DocumentsActivity : AppCompatActivity() {
                         toast(getString(R.string.browser_share_prepare_failed, result.name))
 
                     is SystemShare.PrepareResult.Ready -> {
+                        if (result.streamingCount > 0) {
+                            toast(
+                                getString(
+                                    R.string.browser_share_streaming_hint,
+                                    result.streamingCount,
+                                ),
+                            )
+                        }
                         val opened = SystemShare.send(
                             this@DocumentsActivity,
                             result,

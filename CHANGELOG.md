@@ -8,6 +8,32 @@ versionCode 严格单调递增；versionName 带里程碑后缀，便于在设�
 
 ---
 
+## 0.7.29-M7.27（41）— 2026-11-13
+
+**修复：7 GB 大文件用「系统分享 → 荣耀互传」一直停在「准备中」**
+
+- 根因：`MimiDocumentsProvider.openRead()` 不区分后端，连**本机文件**也走
+  `StorageManager.openProxyFileDescriptor()`（FUSE 代理 fd）。每一次内核 read 都要
+  跨进程回调 `ReadCallback.onRead`，单次上限受 FUSE `max_read` 约束（常见 128 KiB），
+  7 GB 就是数万次 Binder 往返；更关键的是 FUSE fd 不支持 `sendfile` /
+  `FileChannel.transferTo` 的零拷贝路径，而互传、网盘类接收方正是靠它做高速传输，
+  于是在探测大小 / 算摘要的「准备中」阶段迟迟不结束。别的文件管理器给的是真实文件 fd。
+- 修复：`local` scheme 直接 `ParcelFileDescriptor.open(File, MODE_READ_ONLY)`，绕过 FUSE；
+  可 seek、可零拷贝，文件被删 / 改名后句柄仍有效（POSIX 语义）。
+  `smb` / `webdav` / `saf` 没有本地文件，继续走代理 fd 或 API 24/25 的管道。
+  判据抽成纯 Kotlin `DocumentFdRouting`，不必依赖 Android 类就能单测。
+- 加固 `ReadCallback.onGetSize()`：后端报 `SIZE_UNKNOWN` 时补一次 `stat`，不再固定报 0
+  —— FUSE 会把 0 当成空文件，接收方 probe 完大小就直接 EOF。
+- 顺带修掉同类问题：`SystemShare.prepare()` 原先对**所有**远端文件一律整盘落地，
+  而暂存上限是 2 GB（还按 `free/6` 收缩）。超过上限的超大远端文件现在直接把远端
+  `content://` 流式外发（互传类是顺序整读，正好适合代理 fd），不再往手机搬 7 GB；
+  小文件保留落地（系统安装器 / 微信的随机读场景仍受益）。UI 给「请保持连接」提示，
+  并保留「高级分享」兜底；进度框只对真正要落盘的文件显示。
+- 单测：新增 13 条（fd 路由 7 / 大文件策略 6，含 5 GB > `Int.MAX_VALUE` 的 Long 边界），
+  基线 342 → 355。
+- 验收口径：模拟器构造不了 7 GB 真机互传场景，**荣耀互传端到端仍需真机实测**；
+  构建、单测、R8 keep、模拟器 UI 冒烟均已验证。
+
 ## 0.7.28-M7.26（40）— 2026-11-13
 
 **SMB 主目录（不必先选共享）+ 连接条目「复制此连接」**
