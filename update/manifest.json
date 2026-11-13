@@ -1,14 +1,14 @@
 {
-  "versionCode": 39,
-  "versionName": "0.7.27-M7.25",
+  "versionCode": 40,
+  "versionName": "0.7.28-M7.26",
   "publishedAt": "2026-11-13",
-  "notes": "M7.25：长按文件的「分享」改为 Android 系统分享面板（支持多选），原 HTTP/FTP 无线分享改称「高级分享」",
+  "notes": "SMB 主目录：共享名留空可列出全部共享；连接条目三点菜单新增复制此连接",
   "files": [
     {
       "abi": "arm64-v8a",
-      "url": "https://github.com/byl669/MimiFiles/releases/download/v0.7.27-M7.25/mimifiles-0.7.27-M7.25-arm64.apk",
-      "sha256": "1e3f7b514876da03970caa273c0500529153b01a163af5d817048326b8943f27",
-      "size": 14232465
+      "url": "https://github.com/byl669/MimiFiles/releases/download/v0.7.28-M7.26/mimifiles-0.7.28-M7.26-arm64.apk",
+      "sha256": "67257d30dddc088699e3f2e42d9faa5a756687f6df38b976fa9529c39c503814",
+      "size": 14234737
     }
   ],
   "minSupported": 0
