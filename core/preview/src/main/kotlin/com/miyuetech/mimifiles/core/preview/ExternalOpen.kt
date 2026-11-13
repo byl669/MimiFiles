@@ -51,24 +51,29 @@ object ExternalOpen {
      */
     fun open(activity: Activity, path: FsPath, mime: String?): Boolean {
         val intent = viewIntent(activity, path, mime)
-        val targets = activity.packageManager.queryIntentActivities(intent, 0)
-        if (targets.isEmpty()) {
-            MimiLog.d(TAG, "没有应用能处理 ${intent.type}：$path")
-            return false
-        }
-        // 把类型也一并告知（部分应用只看 type 不看 data 的 scheme）。
         val uri = intent.data ?: return false
+
+        // M7.25：Android 11 的包可见性会把 queryIntentActivities 的结果过滤成空，
+        // 但**系统解析隐式 Intent 不受这个限制** —— 拿空列表当"没有应用能打开"
+        // 会让「外部打开」在部分设备上静默失效。现在这个列表只用来**补授权**
+        // （覆盖接收方二次转发的情况），真正的判据是 startActivity 有没有抛异常。
+        val targets = runCatching {
+            activity.packageManager.queryIntentActivities(intent, 0)
+        }.getOrDefault(emptyList())
         targets.forEach { info ->
+            val pkg = info.activityInfo?.packageName ?: return@forEach
             runCatching {
-                activity.grantUriPermission(
-                    info.activityInfo.packageName,
-                    uri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
-                )
+                activity.grantUriPermission(pkg, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
         }
         return runCatching { activity.startActivity(intent); true }
-            .onFailure { MimiLog.w(TAG, "外发打开失败：$path", it) }
+            .onFailure { t ->
+                if (t is android.content.ActivityNotFoundException) {
+                    MimiLog.d(TAG, "没有应用能处理 ${intent.type}：$path")
+                } else {
+                    MimiLog.w(TAG, "外发打开失败：$path", t)
+                }
+            }
             .getOrDefault(false)
     }
 

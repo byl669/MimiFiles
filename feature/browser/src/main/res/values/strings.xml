@@ -6,9 +6,17 @@
     <string name="browser_action_show_hidden">显示隐藏文件</string>
     <string name="browser_action_pin_current">添加当前文件夹到桌面</string>
     <string name="browser_action_connections">网络连接</string>
-    <string name="browser_action_share_wifi">无线分享</string>
-    <string name="browser_share_unavailable">无线分享功能不可用</string>
-    <string name="browser_share_no_location">请先进入一个文件夹再分享</string>
+    <!-- M7.25：「分享」让给系统分享面板，原 HTTP/FTP 无线分享改称「高级分享」 -->
+    <string name="browser_action_share_advanced">高级分享</string>
+    <string name="browser_share_unavailable">高级分享功能不可用</string>
+    <string name="browser_share_no_location">请先进入一个文件夹再使用高级分享</string>
+
+    <!-- ── 系统分享（M7.25）────────────────────────────────────────── -->
+    <string name="browser_share_chooser_title">分享文件</string>
+    <string name="browser_share_preparing">正在准备分享（%1$d/%2$d）…</string>
+    <string name="browser_share_prepare_failed">无法准备「%1$s」，请检查网络连接或改用高级分享</string>
+    <string name="browser_share_no_target">没有应用可以接收这种类型的文件</string>
+    <string name="browser_share_directory_hint">文件夹不能系统分享，请用「高级分享」</string>
     <string name="browser_connections_unavailable">网络连接功能不可用</string>
     <string name="browser_home_title">位置</string>
     <string name="browser_nav_local">本机存储</string>

@@ -36,6 +36,7 @@ import com.miyuetech.mimifiles.core.model.FsPath
 import com.miyuetech.mimifiles.core.model.FsSortField
 import com.miyuetech.mimifiles.core.preview.PreviewArgs
 import com.miyuetech.mimifiles.core.preview.PreviewEnvironment
+import com.miyuetech.mimifiles.core.preview.SystemShare
 import com.miyuetech.mimifiles.core.shortcut.FolderShortcuts
 import com.miyuetech.mimifiles.core.ui.FeatureRoutes
 import com.miyuetech.mimifiles.core.ui.FileLabels
@@ -405,7 +406,7 @@ class DocumentsActivity : AppCompatActivity() {
     /**
      * 导航窗格底部的三个功能入口：无线分享 / 网络连接 / 设置（M7.2 起）。
      *
-     * 无线分享与多选动作走**同一个** [openSharePanel]；网络连接与设置此前
+     * 侧栏「高级分享」与多选栏的「高级分享」走**同一个** [openSharePanel]；网络连接与设置此前
      * 藏在溢出菜单里，M7.2 挪到侧栏底部后入口唯一化，菜单里的分支已删。
      */
     private fun setupNavEntries() {
@@ -1068,22 +1069,81 @@ class DocumentsActivity : AppCompatActivity() {
             MultiSelectBar.Action.INFO ->
                 state.selectedEntries.singleOrNull()?.let(::showProperties)
 
-            // M4：无线分享。选中项交给面板，由它推导共享根
-            // （单选一个目录 → 根就是它；多选 → 取共同父目录 + 根级过滤）。
+            // M7.25：把手机变成 HTTP/FTP 服务端改叫「高级分享」。选中项交给面板，
+            // 由它推导共享根（单选一个目录 → 根就是它；多选 → 取共同父目录 + 根级过滤）。
             // 这里**只传路径**，不传"应该怎么分享"——那属于分享面板的职责，
             // 浏览器不该知道"共享根"这个概念。
-            MultiSelectBar.Action.SHARE -> {
+            MultiSelectBar.Action.ADVANCED_SHARE -> {
                 val entries = state.selectedEntries
                 openSharePanel(
                     selected = entries.map { it.path },
                     selectedIsDir = entries.size == 1 && entries[0].isDirectory,
                 )
             }
+
+            // M7.25：「分享」= Android 系统分享面板。目录没有文件流，动作推导里
+            // 已经不给了，这里再兜一次底，防止状态与菜单不同步时点了没反应。
+            MultiSelectBar.Action.SHARE -> startSystemShare(state.selectedEntries)
         }
     }
 
     /**
-     * 进入无线分享面板（方案 §10.4「入口一致」的三处入口都收敛到这里）。
+     * 弹出系统分享面板。
+     *
+     * 本机文件是零拷贝的，点完直接弹；只有 SMB/WebDAV/SAF 上的文件需要先落到
+     * 私有缓存（见 [SystemShare] 的注释），那段等待才显示进度。`lifecycleScope`
+     * 被销毁时用 `finally` 收掉对话框，避免转屏后对一个已销毁的 Activity 调 dismiss。
+     */
+    private fun startSystemShare(entries: List<FsEntry>) {
+        if (!SystemShare.canShare(entries)) {
+            toast(getString(R.string.browser_share_directory_hint))
+            return
+        }
+        val stagedCount = entries.count { SystemShare.needsStaging(it.path) }
+        val dialog = if (stagedCount > 0) {
+            AlertDialog.Builder(this)
+                .setMessage(getString(R.string.browser_share_preparing, 0, entries.size))
+                .setCancelable(false)
+                .show()
+        } else {
+            null
+        }
+
+        lifecycleScope.launch {
+            try {
+                val result = SystemShare.prepare(
+                    context = this@DocumentsActivity,
+                    entries = entries,
+                    onProgress = { done, total ->
+                        // prepare 的落地在 IO 线程，进度回调可能不在主线程。
+                        runOnUiThread {
+                            dialog?.setMessage(
+                                getString(R.string.browser_share_preparing, done, total),
+                            )
+                        }
+                    },
+                )
+                when (result) {
+                    is SystemShare.PrepareResult.Failed ->
+                        toast(getString(R.string.browser_share_prepare_failed, result.name))
+
+                    is SystemShare.PrepareResult.Ready -> {
+                        val opened = SystemShare.send(
+                            this@DocumentsActivity,
+                            result,
+                            getString(R.string.browser_share_chooser_title),
+                        )
+                        if (!opened) toast(getString(R.string.browser_share_no_target))
+                    }
+                }
+            } finally {
+                dialog?.takeIf { it.isShowing }?.dismiss()
+            }
+        }
+    }
+
+    /**
+     * 进入「高级分享」面板（原无线分享：HTTP/FTP 服务端；方案 §10.4「入口一致」）。
      *
      * @param selected 选中项；空表示"分享当前所在的目录"
      */

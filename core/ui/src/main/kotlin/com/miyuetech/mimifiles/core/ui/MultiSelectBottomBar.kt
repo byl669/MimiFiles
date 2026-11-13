@@ -179,7 +179,15 @@ class MultiSelectBottomBar @JvmOverloads constructor(
         /** 底栏最多平铺的主操作数（4 枚主操作 + 1 枚「更多」= 5，均分不拥挤）。 */
         private const val MAX_PRIMARY = 4
 
-        /** 主操作优先级（ES 同款：复制/剪切/删除/重命名最高频）。表外动作垫后。 */
+        /**
+         * 主操作优先级（ES 同款：复制/剪切/删除/重命名最高频）。表外动作垫后。
+         *
+         * M7.25： [Action.SHARE] 保持在第 5 位 —— 单选时它正好是「更多」菜单的
+         * **第一项**（前 4 枚已被主操作占满），不扩展主栏、不挤掉重命名。
+         * 多选文件时动作总数变少，它会自动升到主栏，这是原有排序的自然结果，
+         * 也更容易点。 [Action.ADVANCED_SHARE] 放最后：它是低频的"把手机当服务器"，
+         * 不该抢系统分享的位置。
+         */
         private val PRIORITY = listOf(
             Action.COPY,
             Action.CUT,
@@ -190,6 +198,7 @@ class MultiSelectBottomBar @JvmOverloads constructor(
             Action.UNFAVORITE,
             Action.ADD_TO_HOME,
             Action.INFO,
+            Action.ADVANCED_SHARE,
         )
     }
 }

@@ -8,6 +8,30 @@ versionCode 严格单调递增；versionName 带里程碑后缀，便于在设�
 
 ---
 
+## 0.7.27-M7.25（39）— 2026-11-13
+
+**「分享」回归 Android 系统分享面板；原 HTTP/FTP 无线分享改称「高级分享」**
+
+- 新增：长按文件 → 「分享」直出系统分享面板（`ACTION_SEND` / `ACTION_SEND_MULTIPLE`）。
+  URI 复用项目自带的 `MimiDocumentsProvider`（`ExternalOpen.documentUri`），
+  **不需要**新增 FileProvider、Manifest provider 或权限；带 `ClipData` 与全部候选应用的
+  URI 读授权，覆盖接收方二次转发的情况。
+- 新增：`SystemShare`（`core:preview`）—— 本机文件零拷贝直发；SMB / WebDAV / SAF 文件
+  先用 `PreviewCache.materializeForSystemShare` 落到私有缓存（指纹目录 + **原名**文件，
+  复用容量上限 / TTL / SMB 断连重试），再让接收方读本地文件。
+  理由是项目里已经吃过一次亏：系统安装器从 SMB 读 APK 时反复随机读直到超时。
+- 新增：`<queries>` 声明包可见性（SEND / SEND_MULTIPLE / VIEW / SAF / 应用详情设置），
+  并把 `ExternalOpen` 的「`queryIntentActivities` 为空 = 没有应用能打开」改成以
+  `startActivity` 是否抛异常为准 —— Android 11+ 会过滤查询结果，
+  旧写法会让「用其它应用打开」在部分设备上静默失效。
+- 改名：多选栏新增「高级分享」动作、侧栏「无线分享」→「高级分享」（含图标）、
+  面板标题与不可用提示同步改名（点「高级分享」不该看到「无线分享」标题）；
+  设置页分组 / QS 磁贴 / 前台服务通知里的「无线分享」按约定保持不动。
+- 规则：选中项含目录时**不提供**系统分享（目录没有可读文件流，也不静默跳过），
+  「高级分享」始终可用；「分享」保持在主栏之外的溢出菜单首位，不挤掉重命名。
+- 单测：新增 15 条纯逻辑用例（可分享判定 / MIME 推导 / SEND vs SEND_MULTIPLE /
+  本机与远端分流 / 落地路径保留文件名）。
+
 ## 0.7.26-M7.24（38）— 2026-10-30
 
 **审片工作流：播放页就地删片 + 退回上级落位**

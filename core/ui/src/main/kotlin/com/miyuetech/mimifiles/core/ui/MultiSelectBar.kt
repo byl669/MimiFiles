@@ -46,7 +46,10 @@ class MultiSelectBar @JvmOverloads constructor(
         COPY(R.string.action_copy, R.drawable.ic_content_copy),
         CUT(R.string.action_cut, R.drawable.ic_content_cut),
         DELETE(R.string.action_delete, R.drawable.ic_delete),
+        /** M7.25：Android 系统分享面板（ACTION_SEND / ACTION_SEND_MULTIPLE）。 */
         SHARE(R.string.action_share, R.drawable.ic_share),
+        /** 原「无线分享」：把手机变成 HTTP/FTP 服务端，改名后仍是同一个功能。 */
+        ADVANCED_SHARE(R.string.action_share_advanced, R.drawable.ic_share_advanced),
         ADD_TO_HOME(R.string.action_add_to_home, R.drawable.ic_add_to_home),
         INFO(R.string.action_info, R.drawable.ic_info),
 
@@ -121,22 +124,28 @@ class MultiSelectBar @JvmOverloads constructor(
          * - 添加到桌面：仅单个**目录** —— 单文件快捷方式已明确不做
          * - 删除 / 剪切 / 重命名：选中项里有只读项时整体不出现，避免"部分成功"
          *
-         * M4 起 [Action.SHARE] **出现在这里**了。此前它被刻意排除，理由是
-         * "分享要对外发文件 URI，需要 FileProvider 与授权流程"——那是 M3 时的判断，
-         * 而 M4 落地的无线分享走的是**完全不同的另一条路**：它不是把 `content://`
-         * 丢给别的应用，而是自己起一个局域网服务端，共享根由路径（`FsPath`）表达。
-         * 既不需要 FileProvider，也没有任何对外授权面，所以那个理由不再成立。
+         * M3 时 [Action.SHARE] 被刻意排除，理由是"分享要对外发文件 URI，需要 FileProvider
+         * 与授权流程"。M4 绕开它的办法是自己起 HTTP/FTP 服务端，于是「分享」这个名字
+         * 被占用了四年（版本意义上）——用户点「分享」看到的却是局域网地址。
+         *
+         * M7.25 把两者拆开：[Action.SHARE] 走系统分享面板，[Action.ADVANCED_SHARE]
+         * 保留原来的 HTTP/FTP 面板。系统分享的 URI 来自我们自己的 `DocumentsProvider`
+         * （`ExternalOpen.documentUri`），不需要新增 FileProvider 或权限。
+         *
+         * - 系统分享**只在全是文件时出现**：目录没有可读的文件流，Provider 的
+         *   `openDocument` 对目录会失败；也不静默跳过，免得用户以为漏发。
+         * - 高级分享**始终可用**：目录恰恰是它最常见的共享根。
+         * - 两者都不受 `writable` 约束（只读 = 不能改，不是不能读）。
          */
         fun actionsFor(selected: List<FsEntry>): List<Action> {
-            val out = ArrayList<Action>(8)
+            val out = ArrayList<Action>(9)
             out += Action.SELECT_ALL
             if (selected.isEmpty()) return out
 
             val writable = selected.none { it.isReadOnly }
             out += Action.COPY
-            // 分享对只读项同样成立（只读分享只是"不能改"，不是"不能读"），
-            // 所以它**不受** `writable` 约束——这一点很容易顺手写成跟着 writable 走。
-            out += Action.SHARE
+            if (selected.all { it.isFile }) out += Action.SHARE
+            out += Action.ADVANCED_SHARE
             if (writable) {
                 out += Action.CUT
                 if (selected.size == 1) out += Action.RENAME

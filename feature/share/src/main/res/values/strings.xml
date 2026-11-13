@@ -2,7 +2,9 @@
 <resources>
 
     <!-- ══════════ 面板骨架 ══════════ -->
-    <string name="share_title">无线分享</string>
+    <!-- M7.25：入口已改名「高级分享」，面板标题跟着改，别让用户点 A 看到 B。
+         磁贴、通知渠道、设置页分组仍写「无线分享」（那是同一功能的内部叫法，按约定不动）。 -->
+    <string name="share_title">高级分享</string>
     <string name="share_tab_http">HTTP</string>
     <string name="share_tab_ftp">FTP</string>
     <string name="share_start">启动分享</string>
@@ -95,6 +97,6 @@
     <string name="share_info_port">端口 %1$d</string>
 
     <!-- ══════════ 入口文案（浏览页复用）══════════ -->
-    <string name="share_entry_nav">无线分享</string>
-    <string name="share_unavailable">无线分享功能不可用</string>
+    <string name="share_entry_nav">高级分享</string>
+    <string name="share_unavailable">高级分享功能不可用</string>
 </resources>

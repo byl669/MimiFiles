@@ -163,6 +163,55 @@ class PreviewCache(
         }
     }
 
+    /**
+     * 「系统分享」专用落地（M7.25）：远端文件落到私有缓存，**文件名保留原名**。
+     *
+     * ## 为什么不能直接用 [materializeForShare]
+     * 那条路径的名字是 `<指纹>-<原名>`，因为它的消费者是系统安装器 —— 安装器只看扩展名，
+     * 前缀无所谓。但系统分享的接收方是微信、邮件、网盘这类应用，它们会把
+     * `OpenableColumns.DISPLAY_NAME` 直接显示给用户；带一串哈希的文件名发出去，
+     * 对方收到的就是「`a3f9c1…-合同.pdf`」，观感上等于改了名。
+     *
+     * 所以这里用「指纹做目录名、原名做文件名」：`external-staging/system-share/<key>/<原名>`。
+     * 指纹目录同时保证"不同目录下的同名文件"不会互相覆盖，也不用每次重下。
+     *
+     * ## 与 [materializeForShare] 共用什么
+     * 容量上限（2 GB / `free/6`）、TTL、[fetch] 的 tmp+改名和 SMB 断连重试全部复用，
+     * 只是换了命名与目录层级。两条路落在同一个 `shareDir` 下，由 [trim] 统一按容量裁剪。
+     *
+     * @return 本地文件；本机文件直接返回自身；超限/读取失败返回 `null`。
+     */
+    suspend fun materializeForSystemShare(
+        path: FsPath,
+        expectedSize: Long = -1L,
+        registry: FileSystemRegistry = FileSystems.registry,
+    ): File? = withContext(PreviewDispatchers.io) {
+        if (path.scheme == LOCAL_SCHEME) {
+            return@withContext File(path.path).takeIf { it.isFile }
+        }
+        val cap = effectiveCap(SHARE_MAX_BYTES)
+        if (expectedSize > cap) {
+            MimiLog.d(TAG, "文件超出暂存上限，不落地：$path（${expectedSize / 1024 / 1024}MB）")
+            return@withContext null
+        }
+
+        val key = ThumbnailKey.of(path, expectedSize, 0L)
+        val bucket = File(shareDir, "$SYSTEM_SHARE_DIR_NAME/$key")
+        val target = File(bucket, safeName(path.displayName))
+        shareLock.withLock {
+            if (!target.isFile || target.length() <= 0L) {
+                if (!bucket.isDirectory) bucket.mkdirs()
+                fetch(path, target, cap, registry)
+                purgeExpiredShares()
+                trim(shareDir, cap)
+            }
+            // 每次分享都刷新 mtime：TTL 的语义是"最后一次用过之后 6 小时"，
+            // 不是"第一次落地之后 6 小时"。
+            target.setLastModified(System.currentTimeMillis())
+            if (target.isFile && target.length() > 0L) target else null
+        }
+    }
+
     /** 仅测试与设置页"清理缓存"使用。 */
     suspend fun clear() = withContext(PreviewDispatchers.io) {
         lock.withLock {
@@ -277,17 +326,26 @@ class PreviewCache(
         }.isSuccess && target.isFile && target.length() > 0L
     }
 
-    /** 按 mtime 从旧到新删到容量以内。 */
+    /**
+     * 按 mtime 从旧到新删到容量以内。
+     *
+     * M7.25 起改成**递归**：系统分享的暂存文件在 `shareDir/system-share/<指纹>/<原名>`
+     * 里，只看 `target.listFiles()` 里的普通文件会把这一整类漏掉 —— 表现为
+     * "点了几次系统分享，缓存悄悄涨到几个 GB 却从没被裁过"。
+     */
     private fun trim(target: File, cap: Long) {
         val files = runCatching {
-            target.listFiles()?.filter { it.isFile } ?: return
+            target.walkTopDown().filter { it.isFile }.toList()
         }.getOrNull() ?: return
         var total = files.sumOf { it.length() }
         if (total <= cap) return
         for (file in files.sortedBy { it.lastModified() }) {
             if (total <= cap) break
             val len = file.length()
-            if (runCatching { file.delete() }.getOrDefault(false)) total -= len
+            if (runCatching { file.delete() }.getOrDefault(false)) {
+                total -= len
+                pruneEmptyBucket(file.parentFile, target)
+            }
         }
     }
 
@@ -302,10 +360,20 @@ class PreviewCache(
     private fun purgeExpiredShares() {
         val now = System.currentTimeMillis()
         runCatching {
-            shareDir.listFiles()?.forEach { file ->
-                if (file.isFile && now - file.lastModified() > SHARE_TTL_MS) file.delete()
+            // 先固化成 List 再删：FileTreeWalk 是惰性遍历，边走边删会漏掉兄弟节点。
+            shareDir.walkTopDown().filter { it.isFile }.toList().forEach { file ->
+                if (now - file.lastModified() > SHARE_TTL_MS && file.delete()) {
+                    pruneEmptyBucket(file.parentFile, shareDir)
+                }
             }
         }
+    }
+
+    /** 删掉空掉的指纹目录；`root` 自己永远不删（它是暂存根目录）。 */
+    private fun pruneEmptyBucket(dir: File?, root: File) {
+        val target = dir ?: return
+        if (target == root || !target.isDirectory) return
+        if (target.list().isNullOrEmpty()) runCatching { target.delete() }
     }
 
     private fun effectiveCap(privateMax: Long = maxBytes): Long {
@@ -341,6 +409,9 @@ class PreviewCache(
         const val DIR_NAME = "preview-cache"
 
         const val SHARE_DIR_NAME = "external-staging"
+
+        /** 系统分享的暂存子目录：`<指纹桶>/<原名>`，理由见 [materializeForSystemShare]。 */
+        const val SYSTEM_SHARE_DIR_NAME = "system-share"
 
         const val LOCAL_SCHEME = "local"
 

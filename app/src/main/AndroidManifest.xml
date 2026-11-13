@@ -51,6 +51,54 @@
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
     <uses-feature android:name="android.software.leanback" android:required="false" />
 
+    <!--
+      ── 包可见性（Android 11+ / targetSdk 36）──────────────────────────
+      M7.25 加系统分享时补的。系统分享要枚举"哪些应用能收文件"以便显式授予
+      URI 读权限；不声明 queries 的话 `queryIntentActivities` 会被过滤，
+      授权名单为空，个别会二次转发 URI 的接收方就会拿到 SecurityException。
+
+      ⚠️ 一旦声明 <queries>，**未列出的隐式查询也会一并被过滤**，所以这里把
+      应用里其它几处隐式 Intent 也列全了，别只加 SEND 就走：
+        · ACTION_VIEW + mime  → ExternalOpen「用其它应用打开」/ 自更新安装 APK
+        · ACTION_VIEW + http(s) → 高级分享面板里点开地址
+        · OPEN_DOCUMENT_TREE / OPEN_DOCUMENT → SAF 授权目录
+        · APPLICATION_DETAILS_SETTINGS → 权限页「去授权」
+      显式 Intent（本应用内跳转、前台服务、快捷设置磁贴）不受此限制。
+    -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.SEND" />
+            <data android:mimeType="*/*" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SEND_MULTIPLE" />
+            <data android:mimeType="*/*" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="*/*" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="http" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.OPEN_DOCUMENT_TREE" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.OPEN_DOCUMENT" />
+            <data android:mimeType="*/*" />
+        </intent>
+        <intent>
+            <action android:name="android.settings.APPLICATION_DETAILS_SETTINGS" />
+            <data android:scheme="package" />
+        </intent>
+    </queries>
+
     <application
         android:name=".FileApp"
         android:allowBackup="true"

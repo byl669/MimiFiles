@@ -1,9 +1,9 @@
 # MimiFiles · 密密文件管理
 
 轻量级 Android 文件管理器：**单 APK 约 14 MB**，本机存储 + SMB/WebDAV 网络共享，
-内置视频播放器与无线分享。绿色无广告、零遥测，支持应用内自更新。
+内置视频播放器、系统分享与局域网高级分享。绿色无广告、零遥测，支持应用内自更新。
 
-**当前版本：`0.7.26-M7.24`（versionCode 38）** · Kotlin 2.1 · AGP 8.13.2 · Gradle 8.14.4
+**当前版本：`0.7.27-M7.25`（versionCode 39）** · Kotlin 2.1 · AGP 8.13.2 · Gradle 8.14.4
 
 ## 为什么选它
 
@@ -19,7 +19,10 @@
   并通过 DocumentsProvider 接入系统文件选择器
 - **🎬 播放器细节** —— 多字幕轨道选择（自动优选简体 > 繁体 > 其它中文）、
   手势进度/音量/亮度、审片时**就地删片**（删除后按顺序接着播下一个）
-- **📡 无线分享** —— 局域网内 HTTP/FTP 服务端，电脑直接访问手机文件
+- **📤 系统分享** —— 长按文件 → 「分享」直出 Android 原生分享面板（微信 / 邮件 / 蓝牙 / 网盘）；
+  本机文件零拷贝直发，SMB/WebDAV 文件先落私有缓存再发，避免接收方反复随机读拖垮网络
+- **📡 高级分享**（原「无线分享」）—— 局域网内 HTTP/FTP 服务端，电脑直接访问手机文件；
+  侧栏与多选栏的「高级分享」入口，功能不变
 - **♻️ 应用内自更新** —— GitHub Releases（安装包）+ Release 资产清单双通道，
   清单多镜像回退，客户端取所有镜像中最大的 versionCode
 
@@ -49,8 +52,9 @@ adb install -r app/build/outputs/apk/release/app-arm64-v8a-release.apk
   **没有这两个文件时 release 包自动退化为 debug 签名，仍可构建** —— 换机器接手时
   先用 debug 签名验证功能，拿到正式密钥后再出发布包。
 - 单测：`./gradlew test`（覆盖路径规范化、SMB 地址解析、更新清单解析、
-  删除后下一首/下一个的进位、目录变更标记等纯逻辑；不依赖设备）。
-  当前基线 **313 项全绿**，`./gradlew test :app:assembleRelease` 约 2 分钟跑完。
+  删除后下一首/下一个的进位、目录变更标记、系统分享的 MIME 与单选/多选分流等
+  纯逻辑；不依赖设备）。当前基线 **328 项全绿**，
+  `./gradlew test :app:assembleRelease` 约 2 分钟跑完。
 - 发布闸门：`./tools/check-r8-keeps.sh`（见下文「R8 keep 闸门」）。
 
 ### 冒烟测试
@@ -83,7 +87,7 @@ Gradle 多模块，**依赖方向单一**：`app → feature → core`，`featur
 | `fs-bootstrap` | 后端装配入口：把 4 个后端一次性注册进注册表（幂等） |
 | `shortcut` | 桌面快捷方式（文件夹 → 图标，pin + legacy 双路） |
 | `network` | 连通性探测、网卡枚举、NSD/mDNS 发现 |
-| `share-server` | 无线分享服务端（NanoHTTPD + FtpServer + `FsBridge`） |
+| `share-server` | 高级分享服务端（NanoHTTPD + FtpServer + `FsBridge`） |
 | `preview` | 类型探测（魔数 + 扩展名）、缩略图、EXIF、预览参数路由、外部打开 |
 | `archive` | 压缩包读取（zip/tar/gz/bz2/xz/7z，rar 只读） |
 | `datastore` | Room / DataStore / Keystore（连接配置、播放进度、设置） |
@@ -98,7 +102,7 @@ Gradle 多模块，**依赖方向单一**：`app → feature → core`，`featur
 | `connection` | 连接管理（SMB / WebDAV 的增删改与测试） |
 | `preview` | 图片 / 文本 / PDF / 音频预览的统一入口（视频转交 player） |
 | `player` | 视频 / 音乐播放：手势、画中画、旋转兜底、外接显示器、就地删片 |
-| `share` | 无线分享面板（HTTP / FTP 开关、二维码、地址展示） |
+| `share` | 高级分享面板（HTTP / FTP 开关、二维码、地址展示） |
 | `settings` | 设置 |
 
 ### 其它

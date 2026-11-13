@@ -283,9 +283,9 @@
                 android:layout_height="wrap_content"
                 android:minHeight="48dp"
                 android:gravity="start|center_vertical"
-                android:text="@string/browser_action_share_wifi"
+                android:text="@string/browser_action_share_advanced"
                 android:textSize="14sp"
-                app:icon="@drawable/ic_share"
+                app:icon="@drawable/ic_share_advanced"
                 app:iconTint="@color/primary" />
 
             <com.google.android.material.button.MaterialButton

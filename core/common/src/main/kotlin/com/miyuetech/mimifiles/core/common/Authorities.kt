@@ -21,11 +21,10 @@ object Authorities {
      */
     const val DOCUMENTS = "com.miyuetech.mimifiles.documents"
 
-    /**
-     * 本机文件的 `FileProvider`（M3 引入）。
-     *
-     * 用途是把本机文件走 `content://` 交给外部应用打开（Office / 安装包 / 压缩包），
-     * 而不暴露明文路径、也不会触发 `FileUriExposedException`。
-     */
-    const val FILE_PROVIDER = "com.miyuetech.mimifiles.files"
+    // M7.25 核对：这里原先还有一个 `FILE_PROVIDER = "com.miyuetech.mimifiles.files"`，
+    // 与清单里实际声明的 `${applicationId}.fileprovider` **对不上**，且全工程没有引用。
+    // 真相在 `UpdateEngine.requestInstall`（运行时拼 `packageName + ".fileprovider"`）
+    // 与 `app/src/main/AndroidManifest.xml`。外发文件统一走 [DOCUMENTS]，
+    // 那个 FileProvider 只服务于"安装下载好的 APK"。
+    // 与其留一个错的常量等人踩，不如删掉、把结论写在注释里。
 }
