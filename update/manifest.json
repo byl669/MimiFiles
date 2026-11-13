@@ -1,14 +1,14 @@
 {
-  "versionCode": 38,
-  "versionName": "0.7.26-M7.24",
-  "publishedAt": "2026-10-30",
-  "notes": "M7.24：播放页可直接删片（删完按顺序接着播下一个，没有就退出），退回上级目录时焦点落在刚离开的文件夹上",
+  "versionCode": 39,
+  "versionName": "0.7.27-M7.25",
+  "publishedAt": "2026-11-13",
+  "notes": "M7.25：长按文件的「分享」改为 Android 系统分享面板（支持多选），原 HTTP/FTP 无线分享改称「高级分享」",
   "files": [
     {
       "abi": "arm64-v8a",
-      "url": "https://github.com/byl669/MimiFiles/releases/download/v0.7.26-M7.24/mimifiles-0.7.26-M7.24-arm64.apk",
-      "sha256": "fbd3aafec34c5a4db3f0b58411b352df9462df142b6efdeca975b40128c050dc",
-      "size": 14212325
+      "url": "https://github.com/byl669/MimiFiles/releases/download/v0.7.27-M7.25/mimifiles-0.7.27-M7.25-arm64.apk",
+      "sha256": "1e3f7b514876da03970caa273c0500529153b01a163af5d817048326b8943f27",
+      "size": 14232465
     }
   ],
   "minSupported": 0
