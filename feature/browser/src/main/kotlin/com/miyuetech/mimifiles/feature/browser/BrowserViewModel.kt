@@ -902,9 +902,12 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     /**
      * 连接 → 导航树/首页条目。
      *
-     * 路径用 [ConnectionProfile.rootFsPath]，也就是**挂载点本身**，而不是
-     * `scheme://id` 的根：SMB 的根是"共享列表"，而用户配连接时已经把共享名填进去了，
-     * 点进去应该直接看到他配的那个共享，而不是再选一次。
+     * 路径用 [ConnectionProfile.rootFsPath]，也就是**挂载点本身**：
+     *  - 填了共享名 → `smb://<id>/<share>`，点进去直接看到他配的那个共享；
+     *  - 共享名留空 → `smb://<id>`（SMB 主目录），点进去由 SMB 后端列出
+     *    这台服务器上的全部共享。
+     *
+     * 两种情形在这里都不需要分支，统一交给 `FileSystem.list()`。
      */
     private fun ConnectionProfile.toRootEntry(): FsEntry = FsEntry(
         path = rootFsPath(),

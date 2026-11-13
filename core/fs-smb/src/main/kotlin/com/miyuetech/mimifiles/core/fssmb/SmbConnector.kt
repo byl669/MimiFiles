@@ -350,32 +350,73 @@ internal object SmbConnector {
         domain: String?,
         settings: SmbSettings,
     ): SmbTransport {
-        // ⚠️ 建连之前先确认 MD4 真的能算（M5.1 补）。
-        //
-        // NTLM 的 NT 哈希 = MD4(密码)，而 jcifs 的 MD4 是从 BouncyCastle 借的，
-        // 走的是 BC 那套**运行期字符串反射**注册。R8 一旦把
-        // `org.bouncycastle.jcajce.provider.digest.MD4$Mappings` 剪掉（引用它的是
-        // 一段拼出来的字符串，可达性分析看不见），BC 会**静默跳过注册**，
-        // 直到认证那一刻才抛 `NoSuchAlgorithmException: no such algorithm: MD4 for provider BC`。
-        //
-        // 那个异常对用户是天书，而且位置很深（在 `SmbFile.listFiles()` 里）。前移到这里：
-        //  · 失败时给一句"升级 / 关掉强制 SMB1"的可执行建议；
-        //  · 成功时也只算一次（结论按进程缓存），对正常连接零额外开销。
-        //
-        // 注意顺序：`Crypto.getMD4()` 会把 BC provider 缓存进 jcifs 的静态字段，
-        // 所以这次调用必须**早于**任何真正的 SMB1 操作，否则缓存的就是坏的 provider。
-        SmbCrypto.verify()?.let { reason ->
-            throw FsIoException(reason)
+        // jcifs 的 context 构造（含 MD4 自检）收在 [jcifsContext]：共享枚举用的是
+        // 另一个入口，两边必须共用同一份认证 / 超时 / 编码参数，不能各写一套。
+        val ctx = jcifsContext(
+            host = host,
+            port = port,
+            username = username,
+            password = password,
+            domain = domain,
+            settings = settings,
+            smb1Only = true,
+        )
+
+        val baseUrl = "smb://$host:$port/$shareName"
+        // 立刻打一次，把"共享不存在/权限不足"这类错误在建连阶段就暴露出来，
+        // 而不是等用户点进目录才报错（那时错误更难归因）。
+        try {
+            SmbFile("$baseUrl/", ctx).listFiles()
+        } catch (t: Throwable) {
+            runCatching { ctx.close() }
+            throw t
         }
+        MimiLog.i(TAG, "SMB1 connected (degraded): $host:$port/$shareName encoding=${settings.encoding}")
+        return JcifsTransport(ctx, baseUrl)
+    }
+
+    /**
+     * 构造一份 jcifs 上下文。**SMB1 数据通道与共享枚举共用这里**，
+     * 唯一差别是 [smb1Only]：前者必须钉死 SMB1，后者先让 jcifs 自行协商 SMB2/3。
+     *
+     * ## 为什么 MD4 自检放在这里（M5.1 补）
+     * NTLM 的 NT 哈希 = MD4(密码)，jcifs 的 MD4 是从 BouncyCastle 借的，
+     * 走的是 BC 那套**运行期字符串反射**注册。R8 一旦把
+     * `org.bouncycastle.jcajce.provider.digest.MD4$Mappings` 剪掉（引用它的是
+     * 一段拼出来的字符串，可达性分析看不见），BC 会**静默跳过注册**，
+     * 直到认证那一刻才抛 `NoSuchAlgorithmException: no such algorithm: MD4 for provider BC`。
+     *
+     * 那个异常对用户是天书，而且位置很深。前移到建 context 之前：
+     *  · 失败时给一句可执行的建议；
+     *  · 成功时只算一次（结论按进程缓存），对正常连接零额外开销。
+     *
+     * 顺序也重要：`Crypto.getMD4()` 会把 BC provider 缓存进 jcifs 的静态字段，
+     * 所以这次调用必须**早于**任何真正的 SMB 操作，否则缓存的就是坏的 provider。
+     * 共享枚举虽然可能跑在 SMB2/3 上，NTLM 认证同样需要 NT 哈希，因此同样要过这一关。
+     */
+    internal fun jcifsContext(
+        host: String,
+        port: Int,
+        username: String?,
+        password: String?,
+        domain: String?,
+        settings: SmbSettings,
+        smb1Only: Boolean,
+    ): CIFSContext {
+        SmbCrypto.verify()?.let { reason -> throw FsIoException(reason) }
+        MimiLog.d(TAG, "jcifs context for $host:$port (smb1Only=$smb1Only, no credentials in log)")
 
         val props = Properties().apply {
-            // 关闭 SMB2 —— 这一条是"降级"的全部含义。jcifs-ng 默认会在 SMB1/SMB2
-            // 之间自动选，所以必须显式禁掉 SMB2，否则"降级"只是重试了一次同样的东西。
-            setProperty("jcifs.smb.client.enableSMB2", "false")
-            setProperty("jcifs.smb.client.disableSMB1", "false")
-            setProperty("jcifs.smb.client.useSMB2Negotiation", "false")
-            setProperty("jcifs.smb.client.minVersion", "SMB1")
-            setProperty("jcifs.smb.client.maxVersion", "SMB1")
+            if (smb1Only) {
+                // 关闭 SMB2 —— 这一条是"降级"的全部含义。jcifs-ng 默认会在 SMB1/SMB2
+                // 之间自动选，所以必须显式禁掉，否则"降级"只是重试了一次同样的东西。
+                setProperty("jcifs.smb.client.enableSMB2", "false")
+                setProperty("jcifs.smb.client.disableSMB1", "false")
+                setProperty("jcifs.smb.client.useSMB2Negotiation", "false")
+                setProperty("jcifs.smb.client.minVersion", "SMB1")
+                setProperty("jcifs.smb.client.maxVersion", "SMB1")
+            }
+            // 自定义端口随 URL 走（`smb://host:port/`）；这几项是连接与请求超时。
             setProperty("jcifs.smb.client.connTimeout", settings.timeoutMs.toString())
             setProperty("jcifs.smb.client.responseTimeout", settings.timeoutMs.toString())
             setProperty("jcifs.smb.client.soTimeout", settings.timeoutMs.toString())
@@ -393,19 +434,7 @@ internal object SmbConnector {
         } else {
             NtlmPasswordAuthenticator(domain.orEmpty(), username, password.orEmpty())
         }
-        val ctx: CIFSContext = base.withCredentials(auth)
-
-        val baseUrl = "smb://$host:$port/$shareName"
-        // 立刻打一次，把"共享不存在/权限不足"这类错误在建连阶段就暴露出来，
-        // 而不是等用户点进目录才报错（那时错误更难归因）。
-        try {
-            SmbFile("$baseUrl/", ctx).listFiles()
-        } catch (t: Throwable) {
-            runCatching { ctx.close() }
-            throw t
-        }
-        MimiLog.i(TAG, "SMB1 connected (degraded): $host:$port/$shareName encoding=${settings.encoding}")
-        return JcifsTransport(ctx, baseUrl)
+        return base.withCredentials(auth)
     }
 
     private fun toFailure(t: Throwable, authority: String): FsException =

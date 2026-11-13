@@ -44,10 +44,18 @@ import kotlinx.coroutines.launch
  * 所以做成一个页面 + 类型单选：切类型只切**可见性**，已填的字段全部保留。
  * 用户从 SMB 切到 WebDAV 看一眼又切回来，不会发现自己的输入被吃掉。
  *
+ * ## 三种进入方式
+ * 新建（`EXTRA_ID` 空）、编辑（`EXTRA_ID`）、复制（`EXTRA_DUPLICATE_FROM`）。
+ * 复制态与新建态共用"生成新 id"的路径，差别只在预填表单与继承密码、高级参数。
+ *
  * ## 密码的三种意图
  * 密码框留空**不等于**清空密码，而是"不改动库里那份"（见 [PasswordUpdate]）。
  * 真正要删掉已保存的密码，走溢出菜单里的显式入口——同一个"清空输入框"的动作
  * 不可能同时表达这两件事。
+ *
+ * 唯一例外是**复制态**：源密码解密后只留在内存里，密码框同样留空，但保存时
+ * 会按新 id 重新加密写入一份。`CredentialVault` 用连接 id 作 AAD，旧密文
+ * 搬到新记录上根本解不开，所以"复制密码"必须走明文重新加密这条路。
  *
  * ## 为什么本页声明 `configChanges` 而浏览页不声明
  * 浏览页的形态（导航窗格宽度、紧凑行高、状态栏显隐）全靠资源限定符在**布局填充时**
@@ -60,8 +68,20 @@ class ConnectionEditActivity : AppCompatActivity() {
 
     private lateinit var repository: ConnectionRepository
 
-    /** 编辑态从库里读出的原记录；新建态为 `null`。 */
+    /** 编辑态从库里读出的原记录；新建态与复制态都为 `null`。 */
     private var loaded: ConnectionProfile? = null
+
+    /** 复制态的源记录；用于「别把副本存成原位置」的防呆校验，以及继承高级参数。 */
+    private var duplicateSource: ConnectionProfile? = null
+
+    /**
+     * 复制态从源连接解密出的密码，**只在内存中**。
+     *
+     * 保险箱用连接 id 作 AAD，旧密文在新 id 下解不开，所以不能复制密文；
+     * 必须由 Repository 拿这份明文按新 id 重新加密。它绝不进 Intent extras、
+     * 绝不回填输入框、绝不写日志，保存完成随页面一起回收。
+     */
+    private var copiedPassword: String? = null
 
     /** 库里是否存着这条连接的密码。决定密码框下方的提示文案。 */
     private var hasStoredPassword = false
@@ -83,6 +103,10 @@ class ConnectionEditActivity : AppCompatActivity() {
     private val editingId: String?
         get() = intent.getStringExtra(EXTRA_ID)?.takeIf { it.isNotBlank() }
 
+    /** 非 null 表示「复制这条连接」；此时 [loaded] 必须保持 null 才能生成新 id。 */
+    private val duplicateFromId: String?
+        get() = intent.getStringExtra(EXTRA_DUPLICATE_FROM)?.takeIf { it.isNotBlank() }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityConnectionEditBinding.inflate(layoutInflater)
@@ -98,11 +122,18 @@ class ConnectionEditActivity : AppCompatActivity() {
         repository = ConnectionRepository(this)
 
         val isNew = editingId == null
-        binding.toolbar.title =
-            getString(if (isNew) R.string.connection_new_title else R.string.connection_edit_title)
+        val isDuplicate = isNew && duplicateFromId != null
+        binding.toolbar.title = getString(
+            when {
+                isDuplicate -> R.string.connection_duplicate_new_title
+                isNew -> R.string.connection_new_title
+                else -> R.string.connection_edit_title
+            },
+        )
         binding.toolbar.setNavigationOnClickListener { onBackPressedDispatcher.onBackPressed() }
         binding.toolbar.inflateMenu(R.menu.connection_edit)
-        binding.toolbar.menu.findItem(R.id.action_clear_password)?.isVisible = !isNew
+        // 「清除已保存的密码」只对编辑态有意义：复制态没有 loaded，点它不会有任何效果。
+        binding.toolbar.menu.findItem(R.id.action_clear_password)?.isVisible = editingId != null
         binding.toolbar.setOnMenuItemClickListener { item ->
             if (item.itemId == R.id.action_clear_password) {
                 clearStoredPassword()
@@ -118,23 +149,24 @@ class ConnectionEditActivity : AppCompatActivity() {
 
         installBackGuard()
 
-        if (isNew) {
-            // 新建：SMB 是局域网场景的绝大多数，默认选它，让最常见的一条路径少一次点击。
-            binding.typeSmb.isChecked = true
-            // 开关初值必须和 `SmbSettings.signing` 的默认值（true）**同源**。
-            //
-            // 之前这里没设，而 `MaterialSwitch` 默认是未勾选：保存时把 `signing=false`
-            // 写进库，于是**每一条新建的 SMB 连接都不要求签名**——在 SMB3 服务端上
-            // 直接连不上（smbj 不允许 SMB3 下关闭签名），而用户从头到尾没碰过这个开关。
-            // 默认值分家是最难查的一类 bug：两边单看都对，合起来不对。
-            binding.switchSigning.isChecked = true
-            applyScheme(ConnectionFormats.SCHEME_SMB)
-            binding.advancedPanel.isVisible = false
-            updateAdvancedButton()
-            updatePasswordHelper()
-            startWatching()
-        } else {
-            loadExisting(editingId!!)
+        when {
+            editingId != null -> loadExisting(editingId!!)
+            duplicateFromId != null -> loadDuplicate(duplicateFromId!!)
+            else -> {
+                // 新建：SMB 是局域网场景的绝大多数，默认选它，让最常见的一条路径少一次点击。
+                binding.typeSmb.isChecked = true
+                // 开关初值必须和新建态的既有取值**同源**。
+                //
+                // 之前这里没设，而 `MaterialSwitch` 默认是未勾选：保存时把
+                // `signing=false` 写进库，用户从头到尾没碰过这个开关，连接行为却变了。
+                // 默认值分家是最难查的一类 bug：两边单看都对，合起来不对。
+                binding.switchSigning.isChecked = true
+                applyScheme(ConnectionFormats.SCHEME_SMB)
+                binding.advancedPanel.isVisible = false
+                updateAdvancedButton()
+                updatePasswordHelper()
+                startWatching()
+            }
         }
     }
 
@@ -164,6 +196,58 @@ class ConnectionEditActivity : AppCompatActivity() {
                 loaded = profile
                 fillForm(profile)
                 startWatching()
+            } finally {
+                setBusy(false)
+            }
+        }
+    }
+
+    /**
+     * 复制态载入：把源连接的表单原样摆好，用户只要改一个共享名就能保存。
+     *
+     * ## 三个必须守住的约束
+     * 1. [loaded] 保持 `null`。[collectProfile] 用 `loaded?.id` 决定 id，一旦赋上源记录
+     *    就会复用源 id，动作从「新增」悄悄变成「覆盖原连接」。
+     * 2. 密码由 [repository] 解密后只留在 [copiedPassword]，**不回填输入框**。
+     *    保险箱用连接 id 作 AAD，旧密文在新 id 下解不开，必须按新 id 重新加密。
+     * 3. 共享名（WebDAV 则是路径）预填并全选聚焦，让「只改名字」这一步零成本。
+     */
+    private fun loadDuplicate(sourceId: String) {
+        setBusy(true)
+        lifecycleScope.launch {
+            try {
+                val source = repository.byId(sourceId)
+                if (source == null) {
+                    Toast.makeText(
+                        this@ConnectionEditActivity,
+                        R.string.connection_missing,
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                    finish()
+                    return@launch
+                }
+                // 先解密再填表：fillForm 末尾的 updatePasswordHelper() 要据此显示提示。
+                copiedPassword = repository.passwordOf(sourceId)
+                duplicateSource = source
+                // 开关初值与新建态同源；fillForm 只覆盖协议专属开关。
+                binding.switchSigning.isChecked = true
+                val label = getString(
+                    R.string.connection_duplicate_label,
+                    source.displayName.ifBlank { ConnectionFormats.endpoint(source) },
+                )
+                fillForm(source.copy(displayName = label))
+                startWatching()
+                updatePasswordHelper()
+
+                val target = if (source.scheme == ConnectionFormats.SCHEME_SMB) {
+                    binding.inputShare
+                } else {
+                    binding.inputRootPath
+                }
+                target.post {
+                    target.requestFocus()
+                    target.selectAll()
+                }
             } finally {
                 setBusy(false)
             }
@@ -327,7 +411,12 @@ class ConnectionEditActivity : AppCompatActivity() {
                 // 密码框有内容就用新的（用户在验证"改过的密码能不能连"），空着就取库里那份。
                 // 这是本页最有价值的一个动作：在离开表单之前就知道到底能不能连，
                 // 而不是保存、返回、点进目录、失败、再回来。
-                val password = if (typed.isNotEmpty()) typed else repository.passwordOf(loaded?.id.orEmpty())
+                val password = when {
+                    typed.isNotEmpty() -> typed
+                    // 复制态没有 loaded，密码取自内存里那份源凭据，而不是一个不存在的 id。
+                    duplicateFromId != null -> copiedPassword
+                    else -> repository.passwordOf(loaded?.id.orEmpty())
+                }
                 ConnectionTester.test(profile, password)
             } catch (cancel: CancellationException) {
                 throw cancel
@@ -463,6 +552,7 @@ class ConnectionEditActivity : AppCompatActivity() {
         binding.boxHost.error = null
         binding.boxPort.error = null
         binding.boxShare.error = null
+        binding.boxRootPath.error = null
 
         val scheme = currentScheme()
 
@@ -503,13 +593,10 @@ class ConnectionEditActivity : AppCompatActivity() {
 
         val rootPath = if (scheme == ConnectionFormats.SCHEME_SMB) {
             val typed = text(binding.inputShare)
-            // 共享名空着时用地址里剥出来的那段（`\\192.168.1.100\stock` 的 `stock`）。
+            // 共享名可以留空 —— 那表示挂载 SMB 主目录，点进去列出这台服务器的全部共享。
+            // 地址里剥出来的那段（`\\192.168.1.100\stock` 的 `stock`）仍按老约定接过来：
+            // 用户既然写了，就不该再抄一遍。所以「只想连主目录」时地址里别带共享名。
             val share = typed.ifEmpty { parsedHost?.share.orEmpty() }
-            if (share.isEmpty()) {
-                binding.boxShare.error = getString(R.string.connection_error_share_required)
-                binding.inputShare.requestFocus()
-                return null
-            }
             // 允许 `share/sub/dir`：挂载到共享下的某个子目录是很常见的用法。
             share.trim('/')
         } else {
@@ -531,9 +618,27 @@ class ConnectionEditActivity : AppCompatActivity() {
 
         // 显示名留空时用端点兜底。强制用户起名没有意义——列表里显示
         // `192.168.1.100/home` 已经足够认出是谁，而多一个必填项只会挡住他。
-        return skeleton.copy(
+        val result = skeleton.copy(
             displayName = text(binding.inputLabel).ifEmpty { ConnectionFormats.endpoint(skeleton) },
         )
+
+        // 复制态防呆：位置没变就保存会命中 Repository 的去重，而用户点「覆盖」
+        // 会**删掉源连接**（新建撞车时 save() 改用那条记录的 id）。与其事后弹一个
+        // 语义含糊的覆盖框，不如在保存前就把"改个名字"这个复制的目的摆到界面上。
+        duplicateSource?.let { source ->
+            if (result.dedupeKey == source.dedupeKey) {
+                val message = getString(R.string.connection_error_duplicate_share)
+                if (scheme == ConnectionFormats.SCHEME_SMB) {
+                    binding.boxShare.error = message
+                    binding.inputShare.requestFocus()
+                } else {
+                    binding.boxRootPath.error = message
+                    binding.inputRootPath.requestFocus()
+                }
+                return null
+            }
+        }
+        return result
     }
 
     /**
@@ -555,7 +660,9 @@ class ConnectionEditActivity : AppCompatActivity() {
      * 写进库里等于把默认值冻在数据上，以后改默认值对老记录不生效。
      */
     private fun collectOptions(scheme: String): Map<String, String> {
-        val out = LinkedHashMap(loaded?.options.orEmpty())
+        // 复制态 loaded 为 null，但高级参数要以源记录为底：像 timeoutMs 这种
+        // 没在表单里暴露的键，不继承就会在复制时静默丢掉。
+        val out = LinkedHashMap((loaded ?: duplicateSource)?.options.orEmpty())
         if (scheme == ConnectionFormats.SCHEME_SMB) {
             out.remove(WebDavOptionKeys.ALLOW_INSECURE)
             out.remove(WebDavOptionKeys.TRUST_FINGERPRINT)
@@ -589,11 +696,19 @@ class ConnectionEditActivity : AppCompatActivity() {
 
     private fun collectPassword(): PasswordUpdate {
         val typed = passwordText()
-        return if (typed.isEmpty()) PasswordUpdate.Unchanged else PasswordUpdate.Set(typed)
+        if (typed.isNotEmpty()) return PasswordUpdate.Set(typed)
+        // 复制态：密码框留空 = 沿用源密码。保险箱用连接 id 作 AAD，所以必须把
+        // 明文交给 Repository 按**新 id** 重新加密，而不是把旧密文搬过去（搬了解不开）。
+        return copiedPassword?.let { PasswordUpdate.Set(it) } ?: PasswordUpdate.Unchanged
     }
 
     private fun updatePasswordHelper() {
         binding.boxPassword.helperText = when {
+            duplicateFromId != null -> getString(
+                if (copiedPassword != null) R.string.connection_password_copied
+                else R.string.connection_password_not_copied,
+            )
+
             editingId == null -> null
             hasStoredPassword -> getString(R.string.connection_password_keep)
             else -> getString(R.string.connection_no_password)
@@ -656,6 +771,9 @@ class ConnectionEditActivity : AppCompatActivity() {
 
         private const val EXTRA_ID = "connection_id"
 
+        /** 复制态的源连接 id。**只传 id**：档案与凭据一律不进 Intent extras。 */
+        private const val EXTRA_DUPLICATE_FROM = "connection_duplicate_from"
+
         /** logcat tag：`adb logcat -s MimiConn`。与 MimiSmb / MimiDav / MimiFs 并列。 */
         private const val CONN_TAG = "MimiConn"
 
@@ -666,10 +784,14 @@ class ConnectionEditActivity : AppCompatActivity() {
             { it.inputEncoding }, { it.inputFingerprint },
         )
 
-        /** 打开编辑页；[id] 为空表示新建。 */
-        fun intent(context: Context, id: String? = null): Intent =
+        /**
+         * 打开编辑页。[id] 为空表示新建；[duplicateFrom] 非空表示「复制这条连接」。
+         * 两者互斥，编辑态优先（[onCreate] 里 `editingId` 排在前面）。
+         */
+        fun intent(context: Context, id: String? = null, duplicateFrom: String? = null): Intent =
             Intent()
                 .setClassName(context, ConnectionEditActivity::class.java.name)
                 .putExtra(EXTRA_ID, id)
+                .putExtra(EXTRA_DUPLICATE_FROM, duplicateFrom)
     }
 }

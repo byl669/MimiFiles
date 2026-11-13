@@ -33,6 +33,12 @@ import kotlinx.coroutines.withContext
  * 代价是会话要按共享缓存：SMB2 的树连接（TREE_CONNECT）是 **per-share** 的，
  * 一个共享一个 `DiskShare`，不能复用。
  *
+ * ## 主目录（不指定共享名）
+ * 连接的 `rootPath` 留空时挂载点是 `smb://<id>`（[FsPath.isRoot]）。列举这个
+ * 路径会走 [SmbShareEnumerator] 列出服务器上的全部共享，每个共享是一个目录条目。
+ * 这是唯一一条不经过 [transport] 的列举路径——枚举共享需要的是 IPC\$/srvsvc，
+ * 不是某个 `DiskShare`。
+ *
  * ## 并发闸门
  * 每个共享的会话上最多同时跑 [MAX_CONCURRENCY] 个请求。smbj 的 `DiskShare`
  * 在同一个树连接上并发发请求时，请求会共享 `SMB2FileId` 表与消息序号，
@@ -103,13 +109,20 @@ class SmbFileSystem internal constructor(
     /**
      * 挂载点。
      *
-     * 返回的是"用户在连接里填的那个位置"（通常是共享名），显示名取连接名，
+     * 返回的是"用户在连接里填的那个位置"，显示名取连接名，
      * 于是侧栏看到的是「NAS-01」而不是「photo」——后者在多个 NAS 上都叫这个名字时会歧义。
+     *
+     * 共享名留空时挂载的是 **SMB 主目录**：`smb://<id>`（[FsPath.isRoot]），
+     * 点进去由 [list] 列出这台服务器上的全部共享。以前这里直接返回空列表，
+     * 导致"不选共享就添加"的连接在侧栏里根本看不见。
      */
     override suspend fun roots(): List<FsEntry> {
         val root = profile.rootPath.trim('/')
-        if (root.isEmpty()) return emptyList()
-        val path = FsPath.of(scheme, profile.id, "/$root")
+        val path = if (root.isEmpty()) {
+            FsPath.of(scheme, profile.id)
+        } else {
+            FsPath.of(scheme, profile.id, "/$root")
+        }
         return listOf(
             FsEntry(
                 path = path,
@@ -121,6 +134,9 @@ class SmbFileSystem internal constructor(
     }
 
     override suspend fun list(dir: FsPath): List<FsEntry> = withContext(io) {
+        // 根路径没有"共享段"，split() 会拒绝它。这里单独分流到共享枚举：
+        // 这是唯一一条不需要 transport(share) 的列举路径。
+        if (dir.isRoot) return@withContext listShareRoots(dir)
         val (share, inner) = split(dir)
         val transport = transport(share)
 
@@ -143,7 +159,38 @@ class SmbFileSystem internal constructor(
         entries
     }
 
+    /**
+     * SMB 主目录 = 这台服务器上的共享列表。
+     *
+     * 每个共享映射成一个目录条目，路径是 `smb://<id>/<share>`；点进去之后
+     * [split] 就能取到共享名，后续读写完全复用原有通道（smbj / SMB1 降级）。
+     *
+     * 条目标 [FsEntry.isReadOnly]：共享是服务端对象，不是共享**里面**的文件，
+     * 在主目录这一层删它/改名都会被 [split] 拒绝，不如一开始就不给这个动作。
+     */
+    private fun listShareRoots(root: FsPath): List<FsEntry> {
+        val names = SmbShareEnumerator.listShares(profile, password)
+        val out = ArrayList<FsEntry>(names.size)
+        for (name in names) {
+            out += FsEntry(
+                path = root.child(name),
+                name = name,
+                kind = FsKind.DIRECTORY,
+                isReadOnly = true,
+            )
+        }
+        return out
+    }
+
     override suspend fun stat(path: FsPath): FsEntry = withContext(io) {
+        // 主目录（共享列表）本身没有 QUERY_INFO 可言，直接合成目录条目。
+        if (path.isRoot) {
+            return@withContext FsEntry(
+                path = path,
+                name = profile.displayName,
+                kind = FsKind.DIRECTORY,
+            )
+        }
         val (share, inner) = split(path)
         // stat 挂在共享根上时（inner 为空）不能问服务端：SMB 的 QUERY_INFO
         // 对"共享根本身"的表述在 smbj/jcifs 上不一致，直接按目录返回更稳。
@@ -160,6 +207,7 @@ class SmbFileSystem internal constructor(
     }
 
     override suspend fun exists(path: FsPath): Boolean = withContext(io) {
+        if (path.isRoot) return@withContext true
         val (share, inner) = split(path)
         if (inner.isEmpty()) return@withContext true
         val transport = transport(share)
@@ -527,7 +575,9 @@ class SmbFileSystem internal constructor(
     private fun split(path: FsPath): Pair<String, String> {
         val segments = path.segments
         if (segments.isEmpty()) {
-            throw FsIoException("SMB path has no share segment: $path")
+            // 走到这里说明有写操作落在了 SMB 主目录（共享列表）上。列举与 stat
+            // 已在上面分流，剩下的动作一律不是对"共享列表"能做的事。
+            throw FsIoException("这里是 SMB 主目录（共享列表），请先进入一个共享再操作：$path")
         }
         return segments[0] to segments.drop(1).joinToString("/")
     }

@@ -35,12 +35,15 @@ sealed interface SmbTestResult {
 object SmbTester {
 
     /**
-     * 打一次真实会话：建连 → 认证 → 列共享根。
+     * 打一次真实会话：建连 → 认证 → 列一次目录（或列一次共享）。
      *
      * 只 `connect(host, port)` 成功是不够的——那只证明 445 端口开着。
      * 列一次目录才能同时验证认证、共享名、以及账号对这个共享的读权限。
+     * 共享名留空时改用「列出全部共享」：同样验证认证与权限，而且和真正点进
+     * SMB 主目录走的是同一条代码路径，不会出现"测试通过、进去却打不开"。
      *
-     * @return 成功时带上协商到的方言（UI 可显示"已降级至 SMB1"）
+     * @return 成功时带上协商到的方言（UI 可显示"已降级至 SMB1"）；主目录连接
+     *         则带回列出的共享数量。
      */
     suspend fun test(profile: ConnectionProfile, password: String?): SmbTestResult =
         withContext(NetworkDispatchers.io) {
@@ -57,13 +60,14 @@ object SmbTester {
             // 共享名优先取"共享名"字段；它空着时用地址里剥出来的那一段
             // （`\\192.168.1.100\stock` 的 `stock`）。两处都能填，哪边有就用哪边。
             val share = shareNameOf(profile.rootPath).ifEmpty { address.share.orEmpty() }
-            if (share.isEmpty()) {
-                return@withContext SmbTestResult.Failure(
-                    "请先填写共享名（例如「home」或「public」）",
-                    retryable = false,
-                )
-            }
             try {
+                // 共享名留空 = 挂载 SMB 主目录。这时"能连上"的判据不是列某个共享，
+                // 而是能不能经 IPC$/srvsvc 把服务器上的共享列出来 —— 认证、权限、
+                // 网络三件事一样都验证得到，且和真正点进主目录走的是同一条代码路径。
+                if (share.isEmpty()) {
+                    val count = SmbShareEnumerator.listShares(profile, password).size
+                    return@withContext SmbTestResult.Success("已列出 $count 个共享")
+                }
                 val dialect = SmbConnector.probe(
                     authority = profile.id.ifEmpty { "_probe" },
                     host = address.host,

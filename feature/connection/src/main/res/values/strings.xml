@@ -12,6 +12,7 @@
     <string name="connection_action_more">更多操作</string>
     <string name="connection_action_edit">编辑</string>
     <string name="connection_action_test">测试连接</string>
+    <string name="connection_action_duplicate">复制此连接</string>
     <string name="connection_action_delete">删除</string>
     <string name="connection_delete_title">删除连接</string>
     <string name="connection_delete_message">将删除「%1$s」及其保存的密码。已钉到桌面的快捷方式会失效。</string>
@@ -20,6 +21,8 @@
     <!-- ── 编辑表单 ─────────────────────────────────────────── -->
     <string name="connection_new_title">新建连接</string>
     <string name="connection_edit_title">编辑连接</string>
+    <string name="connection_duplicate_new_title">复制连接</string>
+    <string name="connection_duplicate_label">%1$s（副本）</string>
     <string name="connection_type">类型</string>
     <string name="connection_type_smb">SMB（局域网共享）</string>
     <string name="connection_type_webdav">WebDAV（网盘 / 云盘）</string>
@@ -29,13 +32,15 @@
     <string name="connection_host_hint">例如：192.168.1.100 或 nas.local</string>
     <string name="connection_port">端口</string>
     <string name="connection_port_hint">留空用默认（SMB 445 / WebDAV 443）</string>
-    <string name="connection_share">共享名</string>
-    <string name="connection_share_hint">例如：home（必填）</string>
+    <string name="connection_share">共享名（可选）</string>
+    <string name="connection_share_hint">留空列出服务器上的全部共享；也可填 home 或 home/子目录</string>
     <string name="connection_root_path">路径</string>
     <string name="connection_root_path_hint">例如：/dav 或 /remote.php/dav/files/用户名</string>
     <string name="connection_username">用户名</string>
     <string name="connection_password">密码</string>
     <string name="connection_password_keep">留空表示不修改已保存的密码</string>
+    <string name="connection_password_copied">已沿用原连接的密码，留空即保留</string>
+    <string name="connection_password_not_copied">原连接未保存密码，需要请填写</string>
     <string name="connection_domain">域</string>
     <string name="connection_domain_hint">域环境才需要，可留空</string>
 
@@ -70,7 +75,7 @@
     <string name="connection_duplicate_back">返回修改</string>
 
     <string name="connection_error_host_required">请填写服务器地址</string>
-    <string name="connection_error_share_required">SMB 必须填写共享名</string>
+    <string name="connection_error_duplicate_share">请改成新的共享名或路径，避免覆盖原连接</string>
     <string name="connection_error_port">端口需为 1–65535 之间的数字</string>
 
     <string name="connection_test_success">连接成功（%1$s）</string>

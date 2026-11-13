@@ -88,6 +88,14 @@ class ConnectionsActivity : AppCompatActivity() {
     }
 
     /**
+     * 复制一条连接：只把**源 id** 传过去，不把档案或密码塞进 Intent extras。
+     * 编辑页自己按 id 读库、解密、预填，明文只在内存里流转。
+     */
+    private fun openDuplicate(id: String) {
+        startActivity(ConnectionEditActivity.intent(this, duplicateFrom = id))
+    }
+
+    /**
      * 条目溢出菜单。
      *
      * 用 `PopupMenu` 而不是 `AlertDialog`：它是"对某一行的动作"，
@@ -97,7 +105,10 @@ class ConnectionsActivity : AppCompatActivity() {
         PopupMenu(this, anchor).apply {
             menu.add(0, MENU_TEST, 0, getString(R.string.connection_action_test))
             menu.add(0, MENU_EDIT, 1, getString(R.string.connection_action_edit))
-            menu.add(0, MENU_DELETE, 2, getString(R.string.connection_action_delete))
+            // 「复制此连接」放在「删除」之前：这是同一行的建设性动作，
+            // 和编辑挨在一起更顺手，也让危险的删除始终留在菜单最后。
+            menu.add(0, MENU_DUPLICATE, 2, getString(R.string.connection_action_duplicate))
+            menu.add(0, MENU_DELETE, 3, getString(R.string.connection_action_delete))
             setOnMenuItemClickListener { item ->
                 when (item.itemId) {
                     MENU_TEST -> {
@@ -107,6 +118,11 @@ class ConnectionsActivity : AppCompatActivity() {
 
                     MENU_EDIT -> {
                         openEditor(profile.id)
+                        true
+                    }
+
+                    MENU_DUPLICATE -> {
+                        openDuplicate(profile.id)
                         true
                     }
 
@@ -172,6 +188,7 @@ class ConnectionsActivity : AppCompatActivity() {
         private const val MENU_TEST = 1
         private const val MENU_EDIT = 2
         private const val MENU_DELETE = 3
+        private const val MENU_DUPLICATE = 4
 
         /** 供浏览页侧栏与应用内其它入口跳转。 */
         fun intent(context: Context): Intent =
