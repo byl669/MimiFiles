@@ -1,14 +1,14 @@
 {
-  "versionCode": 41,
-  "versionName": "0.7.29-M7.27",
-  "publishedAt": "2026-11-13",
-  "notes": "修复 7GB 大文件系统分享卡在准备中：本机文件直开真实 fd 绕过 FUSE 代理；超大远端文件改为流式直发不再整盘落盘；新增 13 条单测，基线 355 项全绿",
+  "versionCode": 42,
+  "versionName": "0.7.30-M7.28",
+  "publishedAt": "2026-11-16",
+  "notes": "修复复制进度浮窗切后台再回来不再显示；新增最小化按钮与右下角圆形进度浮窗（点一下还原）；单测基线 366 全绿",
   "files": [
     {
       "abi": "arm64-v8a",
-      "url": "https://github.com/byl669/MimiFiles/releases/download/v0.7.29-M7.27/mimifiles-0.7.29-M7.27-arm64.apk",
-      "sha256": "b67cf3d1bb181577d647a9de4a22ac7befdba6c904e2a8cd741a2dd165d8f495",
-      "size": 14235237
+      "url": "https://github.com/byl669/MimiFiles/releases/download/v0.7.30-M7.28/mimifiles-0.7.30-M7.28-arm64.apk",
+      "sha256": "691352411a4a0e2d1aad09e2b15e0e05f2e871c79b2566f2407b03c8c1b4bde4",
+      "size": 14237325
     }
   ],
   "minSupported": 0
