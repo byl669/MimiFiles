@@ -31,6 +31,24 @@
     android:background="@color/bg_window">
 
     <!-- ══════════════ ① 主内容（必须是第一个子视图）══════════════ -->
+
+    <!--
+      主内容外面多包一层 FrameLayout，只为给「搬运圆形浮窗」一个覆盖层。
+
+      为什么不把浮窗直接挂在 drawer_layout 上：DrawerLayout 只认两个直接子视图
+      （一个内容 + 一个抽屉），多出来的会被当成抽屉参与滑动与遮罩计算。
+      为什么不挂在 content_root（LinearLayout·vertical）里：那会**占位**，
+      浮窗显示/隐藏时整块列表会被顶得上下跳。
+
+      这一层不参与任何布局测量上的取巧：FrameLayout 与 content_root 都是
+      match_parent，几何与改造前完全一致，`content_root` 的 id 与内边距逻辑
+      也没有变（`DocumentsActivity.setupInsets` 照旧作用在它身上）。
+    -->
+    <FrameLayout
+        android:id="@+id/content_layer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
     <LinearLayout
         android:id="@+id/content_root"
         android:layout_width="match_parent"
@@ -195,6 +213,71 @@
             android:visibility="gone"
             tools:visibility="visible" />
     </LinearLayout>
+
+    <!--
+      搬运进度的「最小化」形态：右下角圆形进度浮窗（M7.28）。
+
+      ## 为什么要有它
+      搬运期间大浮窗（AlertDialog）挡住半个屏幕，用户想边等边翻文件只能把它关掉；
+      关掉之后原来没有任何入口能把它叫回来，只剩通知栏。这个圆形浮窗就是
+      「关掉之后仍然看得见进度、点一下就能还原」的那个锚点。
+
+      ## 尺寸与命中区
+      卡片 72dp（远大于 48dp 的最小触控目标），圆环 64dp，中间放百分比。
+      未知大小时圆环走 indeterminate、百分比留空——不用 0% 冒充，
+      那会被读成「卡住了」（同 `TransferProgress.currentPercent` 的注释）。
+
+      ## 显隐由代码控制
+      默认 GONE；`DocumentsActivity.showTransferBubble()` 才会显示。
+      边距（含手势条/导航栏 inset）也在那里按 insets 计算，
+      因为本页是 edge-to-edge，XML 里写死 bottomMargin 会被导航栏压住。
+    -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/transfer_bubble"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="@dimen/content_padding"
+        android:clickable="true"
+        android:contentDescription="@string/browser_transfer_bubble_indeterminate"
+        android:focusable="true"
+        android:visibility="gone"
+        app:cardBackgroundColor="@color/bg_window"
+        app:cardCornerRadius="36dp"
+        app:cardElevation="8dp"
+        app:rippleColor="@color/primary"
+        app:strokeColor="@color/common_divider"
+        app:strokeWidth="1dp"
+        tools:visibility="visible">
+
+        <FrameLayout
+            android:layout_width="72dp"
+            android:layout_height="72dp">
+
+            <com.google.android.material.progressindicator.CircularProgressIndicator
+                android:id="@+id/transfer_bubble_progress"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                app:indicatorColor="@color/primary"
+                app:indicatorSize="64dp"
+                app:trackColor="@color/common_divider"
+                app:trackCornerRadius="3dp"
+                app:trackThickness="5dp" />
+
+            <TextView
+                android:id="@+id/transfer_bubble_percent"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                tools:text="58%" />
+        </FrameLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    </FrameLayout>
 
     <!-- ══════════════ ② 导航窗格（抽屉 / 静态左树）══════════════ -->
     <LinearLayout

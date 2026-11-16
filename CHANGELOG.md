@@ -8,6 +8,52 @@ versionCode 严格单调递增；versionName 带里程碑后缀，便于在设�
 
 ---
 
+## 0.7.30-M7.28（42）— 2026-11-16
+
+**修复：复制时最小化应用、再回来，进度浮窗不再出现（只剩通知栏）**
+**新增：浮窗「最小化」按钮 → 右下角圆形进度浮窗，点一下还原**
+
+### 根因（旧实现的三个问题叠在一起）
+
+1. **把"系统关的"当成"用户不想看"**：`showTransferDialog()` 用
+   `OnDismissListener` 推断用户意图并置 `transferHidden = true`。但 Activity 退到
+   后台时系统会把对话框窗口 detach，这个回调照样触发，于是切一次后台浮窗就被
+   永久关掉，还被写进 `savedInstanceState` —— 回到应用后 `if (transferHidden) return`
+   直接吞掉所有后续进度。
+2. **复用了画不出来的对话框**：`renderTransfer()` 只判引用是否为 `null`，不判
+   `isShowing`。窗口被 detach 后引用仍在、`isShowing=false`，于是每次刷新都在
+   往一个不显示的对话框里 `setText`。
+3. **关掉之后没有回程**：原来只有「隐藏」这一个动作，隐藏后除了通知栏没有任何
+   入口能把进度叫回来。
+
+### 改动
+
+- 新增 `TransferOverlay`（纯 Kotlin 状态机）：浮窗只有 `NONE / DIALOG / BUBBLE` 三种
+  形态，**只有用户动作**（最小化 / 点圆形浮窗）能改它；系统 detach 窗口、Activity
+  重建都进不来。
+- `DocumentsActivity`：`transferMinimized` 由状态机托管；`renderTransfer()` 改为按
+  `surface()` 分流；对话框判 `isShowing`，不可用就重建；`OnCancelListener` 才代表
+  用户关窗（点外部 / 返回键 = 最小化），`OnDismissListener` 只清引用。
+- 新增圆形浮窗（`MaterialCardView` + `CircularProgressIndicator`，72dp，右下角）：
+  显示百分比，未知大小时走不确定动画；点击还原成大浮窗；边距按系统栏 inset 计算
+  （横屏导航栏在右侧也照顾到）。
+- `TransferProgress.bubblePercent`：字节进度拿不到时按**条目数**兜底，避免小文件
+  批量复制时圆环空转没有数字；单条目且大小未知仍保持不确定。
+- 文案：「隐藏」→「最小化」，提示改为「最小化后右下角显示圆形进度，点它可重新展开」。
+- 布局：主内容外包一层 `FrameLayout` 承载浮窗（不占位，不改 `content_root` 几何）。
+
+### 验证
+
+- 单测 +11（`TransferOverlayTest` 6 条形态转移、`TransferProgressTest` 5 条百分比口径），
+  基线 355 → **366** 全绿；`R8KEEPS_OK 12/12`。
+- 模拟器冒烟（4000 个文件搬运）：大浮窗正常 → 点「最小化」出现圆形浮窗（71%）→
+  点圆形浮窗还原成大浮窗 → **Home 切后台 3 秒再回来，大浮窗与圆形浮窗都自动恢复** →
+  搬运结束两个浮窗都消失、列表正常刷新，日志无 `FATAL` / `PermissionDenial`。
+- 未覆盖：真机上 ROM 对后台窗口的处理差异（本次用模拟器验证，逻辑上已不依赖
+  系统是否 dismiss 对话框）。
+
+---
+
 ## 0.7.29-M7.27（41）— 2026-11-13
 
 **修复：7 GB 大文件用「系统分享 → 荣耀互传」一直停在「准备中」**

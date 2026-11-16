@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
@@ -17,6 +18,8 @@ import androidx.appcompat.widget.PopupMenu
 import androidx.appcompat.widget.SearchView
 import androidx.core.content.ContextCompat
 import androidx.core.view.GravityCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -117,23 +120,18 @@ class DocumentsActivity : AppCompatActivity() {
     private var transferBinding: DialogTransferProgressBinding? = null
 
     /**
-     * 用户是否已经把进度对话框「隐藏」掉了。
+     * 进度浮窗的形态状态机（M7.28）。
      *
-     * 语义刻意做成"对**本次搬运**的隐藏"而不是"以后都别再弹"：
-     * 下一次搬运必须有新的对话框，否则用户会以为功能失效了。
-     * 因此它在进度归空（一次搬运结束）时被清零，并跨屏幕旋转保留（`onSaveInstanceState`）
-     * ——旋转时把用户刚关掉的弹窗又弹回来是最容易被吐槽的一类细节。
+     * 只有**用户动作**（最小化 / 点圆形浮窗还原）会改它；系统在 Activity 退到
+     * 后台时 detach 对话框窗口**不**改。旧版 bug 正是把后者记成了"用户不想看"，
+     * 于是切一次后台进度浮窗就永久消失、只剩通知栏。详见 [TransferOverlay]。
+     *
+     * 一次搬运结束时 [TransferOverlay.clear]，下一次搬运必须重新以大浮窗开始。
      */
-    private var transferHidden = false
+    private val transferOverlay = TransferOverlay()
 
-    /**
-     * 抑制"关闭即视为隐藏"。
-     *
-     * `AlertDialog` 的关闭不区分"用户点了隐藏/点到了外面"与"程序自己关的"，
-     * 而这两者的语义正好相反（前者要记住隐藏，后者不能）。用一个只在
-     * 程序主动关闭期间置位的标志区分，比去猜是哪个按钮触发的可靠。
-     */
-    private var suppressHideOnDismiss = false
+    /** 便捷读法，避免把 `transferOverlay.isMinimized` 写满整个生命周期。 */
+    private val transferMinimized: Boolean get() = transferOverlay.isMinimized
 
     /** 搜索菜单项（M6 · P1-5）。判"要不要先收起搜索"时要用它，见 [exitSearch]。 */
     private var searchItem: MenuItem? = null
@@ -186,7 +184,7 @@ class DocumentsActivity : AppCompatActivity() {
 
         storageManager = StorageAccessManager(this)
         twoPane = resources.getBoolean(CoreR.bool.two_pane)
-        transferHidden = savedInstanceState?.getBoolean(STATE_TRANSFER_HIDDEN) ?: false
+        if (savedInstanceState?.getBoolean(STATE_TRANSFER_MINIMIZED) == true) transferOverlay.minimize()
 
         setupInsets()
         setupPanes()
@@ -202,6 +200,8 @@ class DocumentsActivity : AppCompatActivity() {
 
         binding.permissionAction.setOnClickListener { requestStorageAccess() }
         binding.permissionSaf.setOnClickListener { viewModel.requestSafDirectory() }
+        // 圆形浮窗：点一下就还原成大浮窗（M7.28）。
+        binding.transferBubble.setOnClickListener { restoreTransferDialog() }
 
         applySystemBarIconAppearance(lightBackground = !isNightModeActive())
 
@@ -210,7 +210,7 @@ class DocumentsActivity : AppCompatActivity() {
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        outState.putBoolean(STATE_TRANSFER_HIDDEN, transferHidden)
+        outState.putBoolean(STATE_TRANSFER_MINIMIZED, transferMinimized)
     }
 
     override fun onResume() {
@@ -251,6 +251,32 @@ class DocumentsActivity : AppCompatActivity() {
     private fun setupInsets() {
         binding.contentRoot.padForSystemBars(top = true, bottom = true)
         binding.navPane.padForSystemBars(top = true, bottom = true)
+        setupTransferBubbleInsets()
+    }
+
+    /**
+     * 圆形浮窗的边距要自己算。
+     *
+     * 本页是 edge-to-edge（`enableEdgeToEdge()`），内容区的系统栏由 [padForSystemBars]
+     * 转成 padding，而浮窗是内容区的**兄弟**（在 `content_layer` 里），拿不到那份 padding。
+     * 不补的话，三键导航的手机上浮窗会被导航栏压掉一半，点不到。
+     *
+     * 横屏时导航栏在右侧，所以右内边距也要跟 `bars.right` 走——只加 bottom
+     * 会在横屏下贴到屏幕最右边、和手势区重叠。
+     */
+    private fun setupTransferBubbleInsets() {
+        val bubble = binding.transferBubble
+        val baseMargin = resources.getDimensionPixelSize(CoreR.dimen.content_padding)
+        ViewCompat.setOnApplyWindowInsetsListener(bubble) { view, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            (view.layoutParams as? FrameLayout.LayoutParams)?.let { lp ->
+                lp.marginEnd = baseMargin + bars.right
+                lp.bottomMargin = baseMargin + bars.bottom
+                view.layoutParams = lp
+            }
+            insets
+        }
+        ViewCompat.requestApplyInsets(bubble)
     }
 
     private fun setupPanes() {
@@ -507,15 +533,43 @@ class DocumentsActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * 进度变化的总入口：按 [TransferOverlay.surface] 决定画大浮窗、圆形浮窗，还是都不画。
+     *
+     * 形态只有一个来源（`TransferOverlay`），所以"搬运中却什么都不显示"这种状态
+     * 在结构上就不存在——它同时修掉了旧版切后台回来只剩通知栏的问题。
+     */
     private fun renderTransfer(progress: TransferProgress?) {
         if (progress == null) {
-            // 一次搬运结束：忘掉"隐藏"，下一次搬运必须重新可见。
-            transferHidden = false
+            transferOverlay.clear()
             dismissTransferDialog()
+            hideTransferBubble()
             return
         }
-        if (transferHidden) return
-        val dialog = transferDialog ?: showTransferDialog(progress.kind) ?: return
+        when (transferOverlay.surface(hasProgress = true)) {
+            TransferSurface.BUBBLE -> {
+                dismissTransferDialog()
+                showTransferBubble(progress)
+            }
+
+            // hasProgress=true 时 surface 不会返回 NONE；合并处理省一个无意义分支。
+            TransferSurface.DIALOG, TransferSurface.NONE -> {
+                hideTransferBubble()
+                renderTransferDialog(progress)
+            }
+        }
+    }
+
+    private fun renderTransferDialog(progress: TransferProgress) {
+        // ⚠️ 这里必须判 `isShowing`，不能只判引用是否为 null。
+        //
+        // Activity 退到后台时系统可能把对话框的窗口 detach 掉：引用还在、
+        // `isShowing` 变成 false，而且**不保证**回调 `onDismiss`。旧实现直接复用
+        // 这个引用去 `setText`，界面永远不会再出现——这正是"最小化程序再打开就
+        // 不显示进度浮窗"的直接原因之一。
+        val dialog = transferDialog?.takeIf { it.isShowing }
+            ?: showTransferDialog(progress.kind)
+            ?: return
         val view = transferBinding ?: return
 
         // 建对话框时（`showTransferDialog`）已经把标题设进 Builder 了，这里是**幂等**的补充：
@@ -573,6 +627,12 @@ class DocumentsActivity : AppCompatActivity() {
      */
     private fun showTransferDialog(kind: TransferKind): AlertDialog? {
         if (transferDialog?.isShowing == true) return transferDialog
+        // 能走到这里，说明手上的引用已经不可用（null，或窗口被系统 detach 掉了）。
+        // 先把旧对象 dismiss 一次（窗口若已 detach 会抛，被 runCatching 吞掉），
+        // 再丢掉引用重建，避免复用一个永远画不出来的对话框。
+        val stale = transferDialog
+        discardTransferDialogRefs()
+        if (stale != null) runCatching { stale.dismiss() }
         val dialogBinding = DialogTransferProgressBinding.inflate(layoutInflater)
         transferBinding = dialogBinding
 
@@ -589,26 +649,33 @@ class DocumentsActivity : AppCompatActivity() {
             // / 隐藏后搬运继续…/ 隐藏 取消」，**没有「正在复制」这一行**。
             .setTitle(titleResOf(kind))
             .setView(dialogBinding.root)
-            .setNegativeButton(R.string.browser_transfer_dialog_hide, null)
+            .setNegativeButton(R.string.browser_transfer_dialog_minimize, null)
             .setPositiveButton(R.string.browser_transfer_dialog_cancel, null)
             .create()
 
-        // 「隐藏」= 关掉对话框、**不停**搬运。所以不能给按钮传回调，
-        // 让它走默认的"关闭"行为，再由 onDismiss 记下"用户选择隐藏"。
-        dialog.setOnDismissListener {
-            if (!suppressHideOnDismiss) transferHidden = true
-            transferDialog = null
-            transferBinding = null
-        }
-        // 点对话框外部与返回键同样是"隐藏"：这是 Android 上关弹窗的通用手势，
+        // 「最小化」= 收掉大浮窗、**不停**搬运，改由右下角圆形浮窗继续显示进度。
+        //
+        // ⚠️ 用 `setOnCancelListener` 判"用户关掉了它"，**不用** `setOnDismissListener`：
+        // onDismiss 在系统自己把窗口 detach 掉（Activity 退到后台）时也会触发，
+        // 旧实现拿它当"用户不想看了"，于是切一次后台就把浮窗永久关掉——
+        // 这正是"最小化程序再打开就只剩通知栏"的根因。cancel 只在
+        // 用户点外部 / 按返回键时触发，语义干净。
+        dialog.setOnCancelListener { minimizeTransfer() }
+        // onDismiss 只负责把引用清掉，不推断任何用户意图。
+        dialog.setOnDismissListener { discardTransferDialogRefs() }
+        // 点对话框外部与返回键同样是「最小化」：这是 Android 上关弹窗的通用手势，
         // 用户不会预期它等于"取消传输"（那是一个不可逆的破坏性动作，
         // 必须由明确的按钮触发）。
         dialog.setCanceledOnTouchOutside(true)
 
         dialog.show()
 
-        // 正按钮要自己接管点击：AlertDialog 的默认行为是"点击即关闭"，
-        // 而这里需要**保持打开**并显示"正在取消…"，否则用户看不到任何反馈。
+        // 两个按钮都要自己接管点击：AlertDialog 的默认行为是"点击即关闭"。
+        // 「取消」需要**保持打开**并显示"正在取消…"，否则用户看不到任何反馈；
+        // 「最小化」需要先把形态切成圆形浮窗再关闭，顺序反了会闪一下空状态。
+        dialog.getButton(DialogInterface.BUTTON_NEGATIVE)?.setOnClickListener {
+            minimizeTransfer()
+        }
         dialog.getButton(DialogInterface.BUTTON_POSITIVE)?.setOnClickListener {
             TransferCenter.requestCancel()
         }
@@ -617,15 +684,67 @@ class DocumentsActivity : AppCompatActivity() {
         return dialog
     }
 
-    /** 程序主动关闭对话框（搬运结束 / 转屏重建）。 */
+    /**
+     * 程序主动关闭大浮窗（搬运结束 / 最小化 / 转屏重建）。
+     *
+     * **不改变** [transferMinimized]：是否最小化只由用户动作决定。
+     */
     private fun dismissTransferDialog() {
         val dialog = transferDialog
+        discardTransferDialogRefs()
+        if (dialog == null) return
+        runCatching { dialog.dismiss() }
+    }
+
+    private fun discardTransferDialogRefs() {
         transferDialog = null
         transferBinding = null
-        if (dialog == null) return
-        suppressHideOnDismiss = true
-        runCatching { dialog.dismiss() }
-        suppressHideOnDismiss = false
+    }
+
+    /** 最小化：大浮窗 → 右下角圆形浮窗，搬运照旧。 */
+    private fun minimizeTransfer() {
+        transferOverlay.minimize()
+        dismissTransferDialog()
+        renderTransfer(TransferCenter.state.value)
+    }
+
+    /** 点圆形浮窗：还原成大浮窗。 */
+    private fun restoreTransferDialog() {
+        if (!transferMinimized) return
+        transferOverlay.restore()
+        renderTransfer(TransferCenter.state.value)
+    }
+
+    /**
+     * 圆形浮窗的渲染。
+     *
+     * 用 [TransferProgress.bubblePercent] 而不是 `currentPercent`：小文件批量复制时
+     * 字节进度算不出来，靠条目数兜底才有数字。两者都为 [TransferProgress.UNKNOWN]
+     * 时圆环走不确定动画、百分比留空——不用 0% 冒充，那会被读成"卡住了"。
+     */
+    private fun showTransferBubble(progress: TransferProgress) {
+        val bubble = binding.transferBubble
+        val ring = binding.transferBubbleProgress
+        val percent = progress.bubblePercent
+
+        if (percent < 0) {
+            if (!ring.isIndeterminate) ring.isIndeterminate = true
+            binding.transferBubblePercent.text = null
+            bubble.contentDescription = getString(R.string.browser_transfer_bubble_indeterminate)
+        } else {
+            if (ring.isIndeterminate) ring.isIndeterminate = false
+            if (ring.progress != percent) ring.progress = percent
+            binding.transferBubblePercent.text =
+                getString(R.string.browser_transfer_bubble_percent, percent)
+            bubble.contentDescription = getString(R.string.browser_transfer_bubble_desc, percent)
+        }
+
+        if (bubble.visibility != View.VISIBLE) bubble.visibility = View.VISIBLE
+    }
+
+    private fun hideTransferBubble() {
+        val bubble = binding.transferBubble
+        if (bubble.visibility != View.GONE) bubble.visibility = View.GONE
     }
 
     // ── 渲染 ────────────────────────────────────────────────────────────
@@ -1426,7 +1545,7 @@ class DocumentsActivity : AppCompatActivity() {
     const val MENU_DELETE = 0x15
     const val MENU_FAVORITE = 0x16
 
-        /** 进度对话框的「已隐藏」标记（跨旋转保留，见 [transferHidden]）。 */
-        const val STATE_TRANSFER_HIDDEN = "mimi.transfer.hidden"
+        /** 进度浮窗的「已最小化」标记（跨旋转保留，见 [transferMinimized]）。 */
+        const val STATE_TRANSFER_MINIMIZED = "mimi.transfer.minimized"
     }
 }

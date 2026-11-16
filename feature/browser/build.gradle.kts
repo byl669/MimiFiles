@@ -40,4 +40,7 @@ dependencies {
     implementation(project(":core:datastore"))
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.kotlinx.coroutines.android)
+
+    // 浮窗形态状态机是纯 Kotlin（不碰 Android 类），不需要 Robolectric。
+    testImplementation(libs.junit)
 }

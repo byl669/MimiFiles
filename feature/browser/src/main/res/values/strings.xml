@@ -99,9 +99,14 @@
     <string name="browser_transfer_dialog_progress">已完成 %1$d / %2$d 项</string>
     <!-- 大小已知时的详细行：条目进度 + 当前文件的百分比与字节数 -->
     <string name="browser_transfer_dialog_progress_sized">已完成 %1$d / %2$d 项 · %3$d%%（%4$s / %5$s）</string>
-    <string name="browser_transfer_dialog_hide">隐藏</string>
+    <!-- 最小化：把大浮窗收成右下角圆形进度，搬运继续跑。文案刻意不再叫「隐藏」——
+         隐藏没有回程，而最小化点一下就能还原。 -->
+    <string name="browser_transfer_dialog_minimize">最小化</string>
     <string name="browser_transfer_dialog_cancel">取消</string>
-    <string name="browser_transfer_dialog_hint">隐藏后搬运继续，可在通知栏查看进度或取消</string>
+    <string name="browser_transfer_dialog_hint">最小化后右下角显示圆形进度，点它可重新展开；也可在通知栏查看或取消</string>
+    <string name="browser_transfer_bubble_percent">%1$d%%</string>
+    <string name="browser_transfer_bubble_desc">已完成 %1$d%%，点一下展开进度</string>
+    <string name="browser_transfer_bubble_indeterminate">正在搬运，点一下展开进度</string>
     <string name="browser_transfer_preparing">正在准备…</string>
     <string name="browser_transfer_cancelling">正在取消…</string>
     <string name="browser_transfer_action_cancel">取消</string>

@@ -45,6 +45,24 @@ data class TransferProgress(
             return raw.coerceIn(0L, 100L).toInt()
         }
 
+    /**
+     * 圆形浮窗里显示的百分比。
+     *
+     * 与 [currentPercent] 的差别：那个只描述**当前文件**，而小文件批量复制时
+     * 每个文件都小到没有字节进度（几毫秒就完成，`onBytes` 可能一次都不回调），
+     * 于是圆环会一直转圈却不给数字。这里在拿不到字节进度时按**条目数**兜底，
+     * 让"4000 个小文件复制到第 1300 个"也能显示 33%。
+     *
+     * 单条目（一个大文件）且后端不给大小时仍返回 [UNKNOWN]：此时按条目算恒为 0%，
+     * 会让人以为卡住，不如走不确定动画。
+     */
+    val bubblePercent: Int
+        get() = when {
+            currentTotal > 0L -> currentPercent
+            totalItems > 1 -> (doneItems * 100L / totalItems).coerceIn(0L, 100L).toInt()
+            else -> UNKNOWN
+        }
+
     companion object {
         const val UNKNOWN = -1
         const val UNKNOWN_SIZE = -1L
